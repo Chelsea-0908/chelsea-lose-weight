@@ -24,6 +24,7 @@
                 </div>
             </div>
             <div class="current-date" id="currentDate">2026-07-20 星期一</div>
+            <div class="user-id" id="userIdDisplay" style="font-size: 12px; color: #fff; opacity: 0.7; margin-top: 5px;">正在登录...</div>
         </header>
 
         <nav class="tab-nav">
@@ -244,11 +245,13 @@
                 .then((userCredential) => {
                     currentUid = userCredential.user.uid;
                     console.log('匿名登录成功，UID:', currentUid);
+                    document.getElementById('userIdDisplay').textContent = `用户ID: ${currentUid.substring(0, 8)}...`;
                     loadFromFirestore();
                     setupFirestoreListeners();
                 })
                 .catch((error) => {
                     console.error('匿名登录失败:', error);
+                    document.getElementById('userIdDisplay').textContent = '登录失败，请刷新重试';
                 });
         }
 
