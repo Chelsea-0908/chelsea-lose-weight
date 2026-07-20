@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>减脂打卡 - 一起加油</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-heartbeat"></i> 减脂打卡</h1>
+            <p class="subtitle">和朋友一起，见证更好的自己</p>
+            <div class="user-switch">
+                <span>当前用户：</span>
+                <button id="user1Btn" class="user-btn active">用户A</button>
+                <button id="user2Btn" class="user-btn">用户B</button>
+            </div>
+        </header>
+
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="diet">饮食打卡</button>
+            <button class="tab-btn" data-tab="exercise">运动打卡</button>
+            <button class="tab-btn" data-tab="summary">今日总结</button>
+            <button class="tab-btn" data-tab="friend">朋友动态</button>
+            <button class="tab-btn" data-tab="history">历史记录</button>
+        </nav>
+
+        <main>
+            <!-- 饮食打卡区域 -->
+            <section id="diet" class="tab-content active">
+                <h2><i class="fas fa-utensils"></i> 今日饮食</h2>
+                <div class="meal-cards">
+                    <div class="meal-card" id="breakfast">
+                        <h3><i class="fas fa-sun"></i> 早餐</h3>
+                        <div class="meal-content" id="breakfastContent"></div>
+                        <button class="add-btn" onclick="addMeal('breakfast')">添加</button>
+                    </div>
+                    <div class="meal-card" id="lunch">
+                        <h3><i class="fas fa-sun"></i> 午餐</h3>
+                        <div class="meal-content" id="lunchContent"></div>
+                        <button class="add-btn" onclick="addMeal('lunch')">添加</button>
+                    </div>
+                    <div class="meal-card" id="dinner">
+                        <h3><i class="fas fa-moon"></i> 晚餐</h3>
+                        <div class="meal-content" id="dinnerContent"></div>
+                        <button class="add-btn" onclick="addMeal('dinner')">添加</button>
+                    </div>
+                    <div class="meal-card" id="snack">
+                        <h3><i class="fas fa-cookie-bite"></i> 加餐</h3>
+                        <div class="meal-content" id="snackContent"></div>
+                        <button class="add-btn" onclick="addMeal('snack')">添加</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 运动打卡区域 -->
+            <section id="exercise" class="tab-content">
+                <h2><i class="fas fa-dumbbell"></i> 今日运动</h2>
+                <div class="exercise-list" id="exerciseList"></div>
+                <button class="add-exercise-btn" onclick="addExercise()">添加运动</button>
+            </section>
+
+            <!-- 今日总结区域 -->
+            <section id="summary" class="tab-content">
+                <h2><i class="fas fa-chart-line"></i> 今日总结</h2>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>摄入热量</h3>
+                        <p class="summary-value" id="caloriesIn">0</p>
+                        <p class="summary-unit">千卡</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>消耗热量</h3>
+                        <p class="summary-value" id="caloriesOut">0</p>
+                        <p class="summary-unit">千卡</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>净热量</h3>
+                        <p class="summary-value" id="netCalories">0</p>
+                        <p class="summary-unit">千卡</p>
+                    </div>
+                </div>
+                <div class="progress-section">
+                    <h3>目标进度</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">距离目标还差 500 千卡</p>
+                </div>
+            </section>
+
+            <!-- 朋友动态区域 -->
+            <section id="friend" class="tab-content">
+                <h2><i class="fas fa-users"></i> 朋友动态</h2>
+                <div class="friend-content" id="friendContent"></div>
+            </section>
+
+            <!-- 历史记录区域 -->
+            <section id="history" class="tab-content">
+                <h2><i class="fas fa-history"></i> 历史记录汇总</h2>
+                
+                <div class="history-tabs">
+                    <button class="history-tab active" data-period="week">本周</button>
+                    <button class="history-tab" data-period="month">本月</button>
+                    <button class="history-tab" data-period="year">本年</button>
+                </div>
+                
+                <div class="history-summary">
+                    <div class="history-card">
+                        <h3><i class="fas fa-calendar-check"></i> 打卡天数</h3>
+                        <p class="history-value" id="historyDays">0</p>
+                    </div>
+                    <div class="history-card">
+                        <h3><i class="fas fa-utensils"></i> 总摄入</h3>
+                        <p class="history-value" id="historyCaloriesIn">0</p>
+                        <p class="history-unit">千卡</p>
+                    </div>
+                    <div class="history-card">
+                        <h3><i class="fas fa-burn"></i> 总消耗</h3>
+                        <p class="history-value" id="historyCaloriesOut">0</p>
+                        <p class="history-unit">千卡</p>
+                    </div>
+                    <div class="history-card">
+                        <h3><i class="fas fa-chart-line"></i> 平均每日净热量</h3>
+                        <p class="history-value" id="historyNetAvg">0</p>
+                        <p class="history-unit">千卡</p>
+                    </div>
+                </div>
+                
+                <div class="history-chart">
+                    <h3>每日摄入热量趋势</h3>
+                    <div class="chart-container">
+                        <canvas id="caloriesChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="history-detail">
+                    <h3>详细记录</h3>
+                    <div class="detail-list" id="detailList"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 添加饮食弹窗 -->
+    <div id="mealModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('mealModal')">&times;</span>
+            <h3>添加饮食</h3>
+            <input type="text" id="mealName" placeholder="食物名称">
+            <textarea id="mealDesc" placeholder="详细描述（如份量、烹饪方式等）"></textarea>
+            <input type="file" id="mealImage" accept="image/*" onchange="previewImage('mealImage', 'mealPreview')">
+            <img id="mealPreview" class="preview-image" src="" alt="预览">
+            <button onclick="saveMeal()">保存</button>
+        </div>
+    </div>
+
+    <!-- 添加运动弹窗 -->
+    <div id="exerciseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('exerciseModal')">&times;</span>
+            <h3>添加运动</h3>
+            <select id="exerciseType">
+                <option value="">选择运动类型</option>
+                <option value="running">跑步</option>
+                <option value="cycling">骑行</option>
+                <option value="swimming">游泳</option>
+                <option value="yoga">瑜伽</option>
+                <option value="weights">力量训练</option>
+                <option value="cardio">有氧操</option>
+                <option value="basketball">篮球</option>
+                <option value="badminton">羽毛球</option>
+                <option value="other">其他</option>
+            </select>
+            <input type="number" id="exerciseDuration" placeholder="时长（分钟）">
+            <textarea id="exerciseDesc" placeholder="运动描述"></textarea>
+            <input type="file" id="exerciseImage" accept="image/*" onchange="previewImage('exerciseImage', 'exercisePreview')">
+            <img id="exercisePreview" class="preview-image" src="" alt="预览">
+            <button onclick="saveExercise()">保存</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
