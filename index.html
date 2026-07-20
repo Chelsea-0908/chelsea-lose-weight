@@ -21,7 +21,13 @@
                     <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10" onclick="switchUser('user2')">
                 </div>
             </div>
-            <div class="current-date" id="currentDate">2026-07-20 星期一</div>
+            <div class="date-selector">
+                <button id="prevDayBtn" class="date-nav-btn" onclick="changeDate(-1)"><i class="fas fa-chevron-left"></i></button>
+                <input type="date" id="datePicker" class="date-picker" onchange="onDateChange()">
+                <button id="nextDayBtn" class="date-nav-btn" onclick="changeDate(1)"><i class="fas fa-chevron-right"></i></button>
+                <button id="todayBtn" class="today-btn" onclick="goToToday()">今天</button>
+            </div>
+            <div class="current-date" id="currentDate">2026-07-21 星期二</div>
             <div class="user-id" id="userIdDisplay" style="font-size: 12px; color: #fff; opacity: 0.7; margin-top: 5px;">正在登录...</div>
         </header>
 
@@ -238,6 +244,95 @@
         let currentUid = null;
         let isReadOnlyMode = false;
         let myLocalUser = 'user1';
+        let selectedDate = getTodayString();
+        
+        function getTodayString() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+        
+        function formatDateWithWeek(dateStr) {
+            const date = new Date(dateStr);
+            const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            return `${dateStr} ${weekDays[date.getDay()]}`;
+        }
+        
+        function onDateChange() {
+            const datePicker = document.getElementById('datePicker');
+            const newDate = datePicker.value;
+            if (newDate && newDate !== selectedDate) {
+                selectedDate = newDate;
+                loadDateData();
+            }
+        }
+        
+        function changeDate(delta) {
+            const date = new Date(selectedDate);
+            date.setDate(date.getDate() + delta);
+            const newDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            selectedDate = newDate;
+            document.getElementById('datePicker').value = newDate;
+            loadDateData();
+        }
+        
+        function goToToday() {
+            selectedDate = getTodayString();
+            document.getElementById('datePicker').value = selectedDate;
+            loadDateData();
+        }
+        
+        async function loadDateData() {
+            document.getElementById('currentDate').textContent = formatDateWithWeek(selectedDate);
+            const today = getTodayString();
+            const isHistory = selectedDate !== today;
+            
+            if (isHistory && currentUid) {
+                await loadHistoryDateData(selectedDate);
+            } else if (currentUid) {
+                await loadFromFirestore();
+            } else {
+                updateAllContent();
+            }
+        }
+        
+        async function loadHistoryDateData(date) {
+            if (!db || !currentUid) { updateAllContent(); return; }
+            try {
+                const docId = `${currentUid}_${currentUser}_${date}`;
+                const docRef = doc(db, 'history', docId);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    dailyData[currentUser] = {
+                        meals: data.meals || {breakfast: [], lunch: [], dinner: [], snack: []},
+                        exercises: data.exercises || []
+                    };
+                } else {
+                    dailyData[currentUser] = { meals: {breakfast: [], lunch: [], dinner: [], snack: []}, exercises: [] };
+                }
+                
+                const friendUser = currentUser === 'user1' ? 'user2' : 'user1';
+                const friendDocId = `${currentUid}_${friendUser}_${date}`;
+                const friendDocRef = doc(db, 'history', friendDocId);
+                const friendDocSnap = await getDoc(friendDocRef);
+                
+                if (friendDocSnap.exists()) {
+                    const friendData = friendDocSnap.data();
+                    dailyData[friendUser] = {
+                        meals: friendData.meals || {breakfast: [], lunch: [], dinner: [], snack: []},
+                        exercises: friendData.exercises || []
+                    };
+                } else {
+                    dailyData[friendUser] = { meals: {breakfast: [], lunch: [], dinner: [], snack: []}, exercises: [] };
+                }
+                
+                updateAllContent();
+            } catch (error) {
+                console.error('加载历史日期数据失败:', error);
+                updateAllContent();
+            }
+        }
 
         function initFirebase() {
             console.log('Firebase初始化成功');
@@ -288,7 +383,7 @@
             onSnapshot(userDocRef, (doc) => {
                 if (doc.exists()) {
                     const data = doc.data();
-                    if (data.dailyData) {
+                    if (data.dailyData && selectedDate === getTodayString()) {
                         dailyData[currentUser] = data.dailyData;
                         console.log('实时同步：收到用户数据更新');
                         updateAllContent();
@@ -306,7 +401,11 @@
                 if (cloudHistory.length > 0) {
                     historyData[currentUser] = cloudHistory;
                     console.log('实时同步：收到历史数据更新');
-                    updateHistory();
+                    if (selectedDate !== getTodayString()) {
+                        loadHistoryDateData(selectedDate);
+                    } else {
+                        updateHistory();
+                    }
                 }
             });
         }
@@ -319,11 +418,6 @@
         let historyData = { user1: [], user2: [] };
 
         const exerciseCalories = { running: 300, cycling: 250, swimming: 350, yoga: 100, weights: 200, cardio: 280, basketball: 270, badminton: 200, other: 150 };
-
-        function getTodayString() {
-            const now = new Date();
-            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        }
 
         function getDateRange(period) {
             const dates = [];
@@ -750,7 +844,7 @@
         }
 
         function saveToHistory() {
-            const today = getTodayString();
+            const saveDate = selectedDate;
             const meals = dailyData[currentUser].meals;
             const exercises = dailyData[currentUser].exercises;
             
@@ -759,8 +853,8 @@
             let caloriesOut = 0;
             exercises.forEach(exercise => caloriesOut += exercise.calories);
             
-            const existingIndex = historyData[currentUser].findIndex(h => h.date === today);
-            const dayData = { date: today, caloriesIn: caloriesIn, caloriesOut: caloriesOut, meals: JSON.parse(JSON.stringify(meals)), exercises: JSON.parse(JSON.stringify(exercises)) };
+            const existingIndex = historyData[currentUser].findIndex(h => h.date === saveDate);
+            const dayData = { date: saveDate, caloriesIn: caloriesIn, caloriesOut: caloriesOut, meals: JSON.parse(JSON.stringify(meals)), exercises: JSON.parse(JSON.stringify(exercises)) };
             
             if (existingIndex >= 0) {
                 historyData[currentUser][existingIndex] = dayData;
@@ -773,20 +867,32 @@
 
         async function saveToFirestore() {
             if (!db || !currentUid) return;
+            if (isReadOnlyMode) return;
             try {
-                const today = getTodayString();
-                await setDoc(doc(db, 'users', `${currentUid}_${currentUser}`), {
-                    dailyData: dailyData[currentUser],
-                    userName: document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name')?.value || currentUser,
-                    uid: currentUid,
-                    localUser: currentUser,
-                    lastUpdated: new Date()
-                }, { merge: true });
+                const saveDate = selectedDate;
+                const meals = dailyData[currentUser].meals;
+                const exercises = dailyData[currentUser].exercises;
                 
-                await setDoc(doc(db, 'history', `${currentUid}_${currentUser}_${today}`), {
-                    date: today,
-                    caloriesIn: historyData[currentUser].find(h => h.date === today)?.caloriesIn || 0,
-                    caloriesOut: historyData[currentUser].find(h => h.date === today)?.caloriesOut || 0,
+                let caloriesIn = 0;
+                Object.values(meals).forEach(mealList => mealList.forEach(meal => caloriesIn += meal.calories));
+                let caloriesOut = 0;
+                exercises.forEach(exercise => caloriesOut += exercise.calories);
+                
+                const today = getTodayString();
+                if (saveDate === today) {
+                    await setDoc(doc(db, 'users', `${currentUid}_${currentUser}`), {
+                        dailyData: dailyData[currentUser],
+                        userName: document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name')?.value || currentUser,
+                        uid: currentUid,
+                        localUser: currentUser,
+                        lastUpdated: new Date()
+                    }, { merge: true });
+                }
+                
+                await setDoc(doc(db, 'history', `${currentUid}_${currentUser}_${saveDate}`), {
+                    date: saveDate,
+                    caloriesIn: caloriesIn,
+                    caloriesOut: caloriesOut,
                     meals: dailyData[currentUser].meals,
                     exercises: dailyData[currentUser].exercises,
                     uid: currentUid,
@@ -794,7 +900,23 @@
                     createdAt: new Date()
                 });
                 
-                console.log('数据已同步到Firestore');
+                let existing = historyData[currentUser].find(h => h.date === saveDate);
+                if (existing) {
+                    existing.caloriesIn = caloriesIn;
+                    existing.caloriesOut = caloriesOut;
+                    existing.meals = JSON.parse(JSON.stringify(meals));
+                    existing.exercises = JSON.parse(JSON.stringify(exercises));
+                } else {
+                    historyData[currentUser].push({
+                        date: saveDate,
+                        caloriesIn: caloriesIn,
+                        caloriesOut: caloriesOut,
+                        meals: JSON.parse(JSON.stringify(meals)),
+                        exercises: JSON.parse(JSON.stringify(exercises))
+                    });
+                }
+                
+                console.log(`数据已同步到Firestore (${saveDate})`);
             } catch (error) {
                 console.error('保存到Firestore失败:', error);
             }
@@ -881,9 +1003,14 @@
         }
 
         function showCurrentDate() {
-            const now = new Date();
-            const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-            document.getElementById('currentDate').textContent = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekDays[now.getDay()]}`;
+            const today = getTodayString();
+            selectedDate = today;
+            const datePicker = document.getElementById('datePicker');
+            if (datePicker) {
+                datePicker.value = today;
+                datePicker.max = today;
+            }
+            document.getElementById('currentDate').textContent = formatDateWithWeek(today);
         }
 
         window.addMeal = addMeal;
@@ -895,6 +1022,9 @@
         window.deleteMeal = deleteMeal;
         window.deleteExercise = deleteExercise;
         window.previewImage = previewImage;
+        window.onDateChange = onDateChange;
+        window.changeDate = changeDate;
+        window.goToToday = goToToday;
         window.switchUser = (user) => {
             currentUser = user;
             isReadOnlyMode = user !== myLocalUser;
@@ -905,7 +1035,7 @@
             document.getElementById('user2Name').disabled = myLocalUser !== 'user2';
             
             if (currentUid) {
-                loadFromFirestore();
+                loadDateData();
             } else {
                 updateAllContent();
             }

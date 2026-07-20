@@ -45,17 +45,88 @@ header .subtitle {
 .current-date {
     text-align: center;
     color: #ffffff;
-    font-size: 18px;
-    margin-top: 15px;
-    margin-bottom: 15px;
+    font-size: 16px;
+    margin-top: 10px;
+    margin-bottom: 10px;
     font-weight: bold;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    padding: 8px 16px;
+    padding: 6px 16px;
     background: rgba(255,255,255,0.15);
     border-radius: 20px;
     display: inline-block;
     margin-left: auto;
     margin-right: auto;
+}
+
+.date-selector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.date-picker {
+    padding: 8px 15px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: bold;
+    outline: none;
+    cursor: pointer;
+    color-scheme: dark;
+}
+
+.date-picker::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+.date-nav-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.date-nav-btn:hover {
+    background: rgba(255,255,255,0.4);
+    transform: scale(1.1);
+}
+
+.today-btn {
+    background: rgba(255,255,255,0.3);
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.today-btn:hover {
+    background: rgba(255,255,255,0.5);
+    transform: scale(1.05);
+}
+
+.date-history-badge {
+    background: rgba(255, 193, 7, 0.3);
+    color: #ffeb3b;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    display: inline-block;
 }
 
 .user-btn {
@@ -456,6 +527,23 @@ header .subtitle {
     padding: 10px;
     margin-bottom: 8px;
     font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.friend-meal-item img, .friend-exercise-item img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.friend-meal-item .meal-info, .friend-exercise-item .exercise-info {
+    flex: 1;
+    min-width: 0;
 }
 
 /* 弹窗样式 */
