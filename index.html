@@ -14,9 +14,16 @@
             <p class="subtitle">和朋友一起，见证更好的自己</p>
             <div class="user-switch">
                 <span>当前用户：</span>
-                <button id="user1Btn" class="user-btn active">用户A</button>
-                <button id="user2Btn" class="user-btn">用户B</button>
+                <div class="user-btn-group">
+                    <input type="text" id="user1Name" class="user-name-input" value="用户A" maxlength="10">
+                    <button id="user1Btn" class="user-btn active" onclick="switchUser('user1')">切换</button>
+                </div>
+                <div class="user-btn-group">
+                    <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10">
+                    <button id="user2Btn" class="user-btn" onclick="switchUser('user2')">切换</button>
+                </div>
             </div>
+            <div class="current-date" id="currentDate">2026-07-20 星期一</div>
         </header>
 
         <nav class="tab-nav">
@@ -107,6 +114,8 @@
                     <button class="history-tab" data-period="year">本年</button>
                 </div>
                 
+                <div class="history-date-range" id="historyDateRange"></div>
+                
                 <div class="history-summary">
                     <div class="history-card">
                         <h3><i class="fas fa-calendar-check"></i> 打卡天数</h3>
@@ -150,7 +159,17 @@
             <span class="close" onclick="closeModal('mealModal')">&times;</span>
             <h3>添加饮食</h3>
             <input type="text" id="mealName" placeholder="食物名称">
-            <textarea id="mealDesc" placeholder="详细描述（如份量、烹饪方式等）"></textarea>
+            <div class="weight-input-group">
+                <input type="number" id="mealWeight" placeholder="重量（克）" min="1">
+                <span class="weight-unit">克</span>
+            </div>
+            <div id="snackCaloriesInput" style="display: none;">
+                <div class="manual-calories-group">
+                    <input type="checkbox" id="manualCalories" onchange="toggleManualCalories()">
+                    <span>手动输入卡路里</span>
+                </div>
+                <input type="number" id="mealCalories" placeholder="每百克热量（kj）" min="1" style="display: none;">
+            </div>
             <input type="file" id="mealImage" accept="image/*" onchange="previewImage('mealImage', 'mealPreview')">
             <img id="mealPreview" class="preview-image" src="" alt="预览">
             <button onclick="saveMeal()">保存</button>
@@ -182,6 +201,7 @@
         </div>
     </div>
 
+    <script src="food-database.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

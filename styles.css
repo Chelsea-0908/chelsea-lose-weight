@@ -42,6 +42,22 @@ header .subtitle {
     color: white;
 }
 
+.current-date {
+    text-align: center;
+    color: #ffffff;
+    font-size: 18px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .user-btn {
     padding: 8px 20px;
     border: none;
@@ -163,17 +179,17 @@ header .subtitle {
     font-weight: bold;
 }
 
-.add-btn, .add-exercise-btn {
+.add-btn {
     position: absolute;
     bottom: 15px;
     right: 15px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    padding: 8px 20px;
+    border-radius: 25px;
     border: none;
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    font-size: 1.5rem;
+    font-size: 0.9rem;
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.3s;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
@@ -181,12 +197,100 @@ header .subtitle {
 
 .add-exercise-btn {
     position: relative;
-    width: auto;
-    height: auto;
-    border-radius: 30px;
     padding: 12px 30px;
+    border-radius: 30px;
+    border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
     font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     margin-top: 20px;
+}
+
+.user-name-input {
+    padding: 6px 12px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-size: 0.9rem;
+    margin-right: 5px;
+    outline: none;
+    max-width: 80px;
+    text-align: center;
+}
+
+.user-name-input:focus {
+    border-color: white;
+    background: rgba(255,255,255,0.3);
+}
+
+.user-name-input::placeholder {
+    color: rgba(255,255,255,0.7);
+}
+
+.delete-btn {
+    float: right;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    background: #ff5252;
+    transform: scale(1.1);
+}
+
+.weight-input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.weight-input-group input {
+    flex: 1;
+    margin-bottom: 0;
+    border-radius: 10px 0 0 10px;
+}
+
+.weight-unit {
+    background: #e9ecef;
+    padding: 12px 15px;
+    border: 2px solid #e9ecef;
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+    color: #666;
+    font-weight: bold;
+}
+
+.manual-calories-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.manual-calories-group input {
+    width: auto;
+    margin-right: 8px;
+    margin-bottom: 0;
+}
+
+.manual-calories-group span {
+    color: #666;
+    font-size: 0.9rem;
 }
 
 .add-btn:hover, .add-exercise-btn:hover {
@@ -544,9 +648,8 @@ header .subtitle {
     }
     
     .add-btn {
-        width: 36px;
-        height: 36px;
-        font-size: 1.3rem;
+        padding: 6px 16px;
+        font-size: 0.8rem;
         bottom: 10px;
         right: 10px;
     }
@@ -748,6 +851,17 @@ input:focus, textarea:focus, select:focus {
 
 .history-tab:hover:not(.active) {
     border-color: #667eea;
+}
+
+.history-date-range {
+    text-align: center;
+    color: #667eea;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background: #f0f4ff;
+    border-radius: 10px;
 }
 
 .history-summary {

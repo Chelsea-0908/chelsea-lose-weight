@@ -30,20 +30,6 @@ let historyData = {
     user2: []
 };
 
-// 食物热量数据库
-const foodCalories = {
-    '米饭': 130, '面条': 110, '馒头': 280, '面包': 250,
-    '鸡蛋': 140, '牛奶': 54, '豆浆': 30, '粥': 60,
-    '鸡胸肉': 165, '瘦牛肉': 250, '鱼肉': 120, '虾': 90,
-    '西兰花': 34, '菠菜': 23, '黄瓜': 16, '番茄': 18,
-    '苹果': 52, '香蕉': 91, '橙子': 47, '草莓': 32,
-    '蛋糕': 350, '薯片': 536, '巧克力': 546, '饼干': 400,
-    '沙拉': 150, '汉堡': 540, '披萨': 285, '炸鸡': 275,
-    '豆腐': 70, '瘦肉': 200, '鸡蛋羹': 80, '炒饭': 180,
-    '水饺': 280, '包子': 250, '油条': 380, '煎饼': 220,
-    '酸奶': 80, '坚果': 600, '蜂蜜': 304, '燕麦': 389
-};
-
 // 运动热量消耗（每30分钟）
 const exerciseCalories = {
     running: 300, cycling: 250, swimming: 350, yoga: 100,
@@ -60,22 +46,28 @@ function getTodayString() {
 function getDateRange(period) {
     const dates = [];
     const now = new Date();
-    let startDate = new Date(now);
+    let startDate, endDate;
     
     switch(period) {
         case 'week':
-            startDate.setDate(startDate.getDate() - 6);
+            const dayOfWeek = now.getDay();
+            const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            startDate = new Date(now);
+            startDate.setDate(startDate.getDate() - daysSinceMonday);
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 6);
             break;
         case 'month':
-            startDate.setDate(1);
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             break;
         case 'year':
-            startDate.setMonth(0);
-            startDate.setDate(1);
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date(now.getFullYear(), 11, 31);
             break;
     }
     
-    while (startDate <= now) {
+    while (startDate <= endDate) {
         dates.push({
             date: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`,
             label: period === 'week' ? ['日', '一', '二', '三', '四', '五', '六'][startDate.getDay()] : 
@@ -134,11 +126,28 @@ document.querySelectorAll('.history-tab').forEach(btn => {
 function addMeal(type) {
     currentMealType = type;
     document.getElementById('mealName').value = '';
-    document.getElementById('mealDesc').value = '';
+    document.getElementById('mealWeight').value = '';
+    document.getElementById('mealCalories').value = '';
+    document.getElementById('manualCalories').checked = false;
+    document.getElementById('mealCalories').style.display = 'none';
     document.getElementById('mealImage').value = '';
     document.getElementById('mealPreview').src = '';
     document.getElementById('mealPreview').style.display = 'none';
+    
+    if (type === 'snack') {
+        document.getElementById('snackCaloriesInput').style.display = 'block';
+    } else {
+        document.getElementById('snackCaloriesInput').style.display = 'none';
+    }
+    
     document.getElementById('mealModal').style.display = 'block';
+}
+
+// 切换手动输入卡路里
+function toggleManualCalories() {
+    const checkbox = document.getElementById('manualCalories');
+    const caloriesInput = document.getElementById('mealCalories');
+    caloriesInput.style.display = checkbox.checked ? 'block' : 'none';
 }
 
 // 添加运动
@@ -171,10 +180,10 @@ function previewImage(inputId, previewId) {
     }
 }
 
-// 估算热量
-function estimateCalories(name, desc) {
+// 按重量估算热量（数据来源：香港食物安全中心营养资料查询系统）
+function estimateCaloriesByWeight(name, weight) {
     let calories = 0;
-    const text = (name + ' ' + desc).toLowerCase();
+    const text = name.toLowerCase();
     
     for (let food in foodCalories) {
         if (text.includes(food.toLowerCase())) {
@@ -183,46 +192,52 @@ function estimateCalories(name, desc) {
     }
     
     if (calories === 0) {
-        const descLength = desc.length;
-        if (descLength < 10) calories = 100;
-        else if (descLength < 30) calories = 200;
-        else calories = 300;
+        calories = 50;
     }
     
-    if (desc.includes('大份') || desc.includes('多') || desc.includes('大量')) {
-        calories *= 1.5;
-    } else if (desc.includes('小份') || desc.includes('少') || desc.includes('少量')) {
-        calories *= 0.7;
-    }
-    
-    return Math.round(calories);
+    const calculatedCalories = Math.round((calories / 100) * weight);
+    return calculatedCalories;
 }
 
 // 保存饮食
 function saveMeal() {
     const name = document.getElementById('mealName').value;
-    const desc = document.getElementById('mealDesc').value;
+    const weight = parseInt(document.getElementById('mealWeight').value) || 100;
     const imageInput = document.getElementById('mealImage');
+    
+    if (!name) {
+        alert('请输入食物名称');
+        return;
+    }
+    
+    let calories = 0;
+    const isManualCalories = document.getElementById('manualCalories').checked;
+    
+    if (isManualCalories) {
+        const kjPer100g = parseInt(document.getElementById('mealCalories').value) || 0;
+        calories = Math.round((kjPer100g / 100) * weight / 4.184);
+    } else {
+        calories = estimateCaloriesByWeight(name, weight);
+    }
     
     let imageSrc = '';
     if (imageInput.files && imageInput.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
             imageSrc = e.target.result;
-            saveMealData(name, desc, imageSrc);
+            saveMealData(name, weight, calories, imageSrc);
         };
         reader.readAsDataURL(imageInput.files[0]);
     } else {
-        saveMealData(name, desc, '');
+        saveMealData(name, weight, calories, '');
     }
 }
 
-function saveMealData(name, desc, imageSrc) {
-    const calories = estimateCalories(name, desc);
+function saveMealData(name, weight, calories, imageSrc) {
     const meal = {
         id: Date.now(),
         name: name || '未命名食物',
-        desc: desc,
+        weight: weight,
         image: imageSrc,
         calories: calories,
         time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
@@ -230,6 +245,13 @@ function saveMealData(name, desc, imageSrc) {
     
     dailyData[currentUser].meals[currentMealType].push(meal);
     closeModal('mealModal');
+    updateMealContent();
+    updateSummary();
+}
+
+// 删除饮食记录
+function deleteMeal(mealType, mealId) {
+    dailyData[currentUser].meals[mealType] = dailyData[currentUser].meals[mealType].filter(meal => meal.id !== mealId);
     updateMealContent();
     updateSummary();
 }
@@ -304,9 +326,10 @@ function updateMealContent() {
         } else {
             content.innerHTML = meals.map(meal => `
                 <div class="food-item">
+                    <button class="delete-btn" onclick="deleteMeal('${type}', ${meal.id})">×</button>
                     ${meal.image ? `<img src="${meal.image}" alt="${meal.name}">` : ''}
                     <h4>${meal.name}</h4>
-                    ${meal.desc ? `<p>${meal.desc}</p>` : ''}
+                    <p>${meal.weight} 克</p>
                     <p class="calories">${meal.calories} 千卡</p>
                     <p class="time">${meal.time}</p>
                 </div>
@@ -379,7 +402,9 @@ function updateSummary() {
 // 更新朋友动态
 function updateFriendContent() {
     const friendUser = currentUser === 'user1' ? 'user2' : 'user1';
-    const friendName = currentUser === 'user1' ? '用户B' : '用户A';
+    const friendName = currentUser === 'user1' ? 
+        document.getElementById('user2Name').value || '用户B' : 
+        document.getElementById('user1Name').value || '用户A';
     const data = dailyData[friendUser];
     
     const meals = data.meals;
@@ -442,6 +467,26 @@ function updateFriendContent() {
 function updateHistory() {
     const dates = getDateRange(currentHistoryPeriod);
     const history = historyData[currentUser];
+    
+    // 显示日期范围
+    const dateRangeElement = document.getElementById('historyDateRange');
+    if (dates.length > 0) {
+        const startDate = dates[0].date;
+        const endDate = dates[dates.length - 1].date;
+        let rangeText = '';
+        switch(currentHistoryPeriod) {
+            case 'week':
+                rangeText = `日期范围：${startDate} 至 ${endDate}`;
+                break;
+            case 'month':
+                rangeText = `日期范围：${startDate} 至 ${endDate}`;
+                break;
+            case 'year':
+                rangeText = `日期范围：${startDate} 至 ${endDate}`;
+                break;
+        }
+        dateRangeElement.textContent = rangeText;
+    }
     
     // 计算统计数据
     let totalDays = 0;
@@ -650,20 +695,49 @@ updateAllContent();
 // 添加一些示例数据
 function addSampleData() {
     dailyData.user1.meals.breakfast = [
-        {id: 1, name: '全麦面包', desc: '2片', image: '', calories: 250, time: '07:30'}
+        {id: 1, name: '鸡蛋', weight: 50, image: '', calories: 72, time: '07:30'},
+        {id: 2, name: '牛奶', weight: 200, image: '', calories: 128, time: '07:30'}
     ];
     dailyData.user1.meals.lunch = [
-        {id: 2, name: '鸡胸肉沙拉', desc: '鸡胸肉100g，蔬菜适量', image: '', calories: 280, time: '12:00'}
+        {id: 3, name: '白饭', weight: 150, image: '', calories: 174, time: '12:00'},
+        {id: 4, name: '鸡胸肉', weight: 100, image: '', calories: 165, time: '12:00'},
+        {id: 5, name: '西兰花', weight: 100, image: '', calories: 33, time: '12:00'},
+        {id: 6, name: '胡萝卜', weight: 50, image: '', calories: 21, time: '12:00'}
+    ];
+    dailyData.user1.meals.dinner = [
+        {id: 7, name: '包菜', weight: 200, image: '', calories: 44, time: '18:30'},
+        {id: 8, name: '番茄', weight: 100, image: '', calories: 18, time: '18:30'},
+        {id: 9, name: '鸡蛋', weight: 100, image: '', calories: 143, time: '18:30'}
+    ];
+    dailyData.user1.meals.snack = [
+        {id: 10, name: '苹果', weight: 150, image: '', calories: 89, time: '15:00'},
+        {id: 11, name: '黄瓜', weight: 100, image: '', calories: 10, time: '10:30'}
     ];
     dailyData.user1.exercises = [
-        {id: 3, type: 'running', name: '跑步', duration: 30, desc: '慢跑', image: '', calories: 300, time: '08:00'}
+        {id: 12, type: 'running', name: '跑步', duration: 30, desc: '慢跑', image: '', calories: 300, time: '08:00'}
     ];
     
     dailyData.user2.meals.breakfast = [
-        {id: 4, name: '鸡蛋+牛奶', desc: '1个鸡蛋，1杯牛奶', image: '', calories: 194, time: '07:00'}
+        {id: 13, name: '燕麦', weight: 50, image: '', calories: 195, time: '07:00'},
+        {id: 14, name: '香蕉', weight: 100, image: '', calories: 89, time: '07:00'}
+    ];
+    dailyData.user2.meals.lunch = [
+        {id: 15, name: '白饭', weight: 100, image: '', calories: 116, time: '12:30'},
+        {id: 16, name: '瘦牛肉', weight: 100, image: '', calories: 105, time: '12:30'},
+        {id: 17, name: '菠菜', weight: 100, image: '', calories: 21, time: '12:30'},
+        {id: 18, name: '生菜', weight: 50, image: '', calories: 6, time: '12:30'}
+    ];
+    dailyData.user2.meals.dinner = [
+        {id: 19, name: '冬瓜', weight: 200, image: '', calories: 26, time: '18:00'},
+        {id: 20, name: '豆腐', weight: 100, image: '', calories: 70, time: '18:00'},
+        {id: 21, name: '白萝卜', weight: 100, image: '', calories: 18, time: '18:00'}
+    ];
+    dailyData.user2.meals.snack = [
+        {id: 22, name: '草莓', weight: 100, image: '', calories: 32, time: '15:00'},
+        {id: 23, name: '橙子', weight: 150, image: '', calories: 71, time: '14:00'}
     ];
     dailyData.user2.exercises = [
-        {id: 5, type: 'yoga', name: '瑜伽', duration: 45, desc: '晨间瑜伽', image: '', calories: 150, time: '07:30'}
+        {id: 24, type: 'yoga', name: '瑜伽', duration: 45, desc: '晨间瑜伽', image: '', calories: 150, time: '07:30'}
     ];
     
     updateAllContent();
@@ -675,4 +749,22 @@ addSampleData();
 // 页面关闭前保存数据
 window.addEventListener('beforeunload', () => {
     saveToHistory();
+});
+
+// 显示当前日期
+function showCurrentDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const weekDay = weekDays[now.getDay()];
+    const dateElement = document.getElementById('currentDate');
+    if (dateElement) {
+        dateElement.textContent = `${year}-${month}-${day} ${weekDay}`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    showCurrentDate();
 });
