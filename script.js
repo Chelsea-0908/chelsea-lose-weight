@@ -1,6 +1,37 @@
 let currentUser = 'user1';
 let currentMealType = '';
 let currentHistoryPeriod = 'week';
+let currentUid = null;
+
+// Firebase实例（通过ES模块在HTML中初始化）
+let db = null;
+let auth = null;
+
+function initFirebase() {
+    if (window.db && window.auth) {
+        db = window.db;
+        auth = window.auth;
+        console.log('Firebase初始化成功');
+        signInAnonymously();
+    } else {
+        console.error('Firebase未在HTML中初始化');
+    }
+}
+
+// 匿名登录
+function signInAnonymously() {
+    if (!window.signInAnonymously || !auth) return;
+    
+    window.signInAnonymously(auth)
+        .then((userCredential) => {
+            currentUid = userCredential.user.uid;
+            console.log('匿名登录成功，UID:', currentUid);
+            loadFromFirestore();
+        })
+        .catch((error) => {
+            console.error('匿名登录失败:', error);
+        });
+}
 
 // 每日数据
 let dailyData = {
@@ -611,6 +642,84 @@ function saveToHistory() {
     } else {
         historyData[currentUser].push(dayData);
     }
+    
+    saveToFirestore();
+}
+
+// 保存数据到Firestore
+async function saveToFirestore() {
+    if (!db || !currentUid) return;
+    
+    try {
+        const today = getTodayString();
+        await db.collection('users').doc(currentUid).set({
+            dailyData: dailyData[currentUser],
+            userName: document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name')?.value || currentUser,
+            lastUpdated: new Date()
+        }, { merge: true });
+        
+        await db.collection('history').doc(`${currentUid}_${today}`).set({
+            date: today,
+            caloriesIn: historyData[currentUser].find(h => h.date === today)?.caloriesIn || 0,
+            caloriesOut: historyData[currentUser].find(h => h.date === today)?.caloriesOut || 0,
+            meals: dailyData[currentUser].meals,
+            exercises: dailyData[currentUser].exercises,
+            uid: currentUid,
+            createdAt: new Date()
+        });
+        
+        console.log('数据已同步到Firestore');
+    } catch (error) {
+        console.error('保存到Firestore失败:', error);
+    }
+}
+
+// 从Firestore加载数据
+async function loadFromFirestore() {
+    if (!db || !currentUid) {
+        console.log('Firebase未初始化或未登录，使用本地数据');
+        return;
+    }
+    
+    try {
+        const userDoc = await db.collection('users').doc(currentUid).get();
+        if (userDoc.exists) {
+            const data = userDoc.data();
+            if (data.dailyData) {
+                dailyData[currentUser] = data.dailyData;
+                console.log('从Firestore加载每日数据成功');
+            }
+            if (data.userName) {
+                const nameInput = document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name');
+                if (nameInput) nameInput.value = data.userName;
+            }
+        }
+        
+        const historySnapshot = await db.collection('history')
+            .where('uid', '==', currentUid)
+            .get();
+        
+        const cloudHistory = [];
+        historySnapshot.forEach(doc => {
+            const data = doc.data();
+            cloudHistory.push({
+                date: data.date,
+                caloriesIn: data.caloriesIn,
+                caloriesOut: data.caloriesOut,
+                meals: data.meals,
+                exercises: data.exercises
+            });
+        });
+        
+        if (cloudHistory.length > 0) {
+            historyData[currentUser] = cloudHistory;
+            console.log('从Firestore加载历史数据成功');
+        }
+        
+        updateAllContent();
+    } catch (error) {
+        console.error('从Firestore加载数据失败:', error);
+    }
 }
 
 // 更新所有内容
@@ -767,4 +876,5 @@ function showCurrentDate() {
 
 document.addEventListener('DOMContentLoaded', function() {
     showCurrentDate();
+    initFirebase();
 });

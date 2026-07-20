@@ -6,6 +6,31 @@
     <title>减脂打卡 - 一起加油</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmZqmJCSVq2gBmK4Xmw",
+            authDomain: "chelsea-lose-weight.firebaseapp.com",
+            projectId: "chelsea-lose-weight",
+            storageBucket: "chelsea-lose-weight.firebasestorage.app",
+            messagingSenderId: "67583269783",
+            appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
+            measurementId: "G-4SPEC4QKQN"
+        };
+        
+        window.firebaseApp = initializeApp(firebaseConfig);
+        window.db = getFirestore(window.firebaseApp);
+        window.auth = getAuth(window.firebaseApp);
+        window.signInAnonymously = signInAnonymously;
+        window.onAuthStateChanged = onAuthStateChanged;
+        
+        console.log('Firebase初始化成功');
+    </script>
 </head>
 <body>
     <div class="container">
