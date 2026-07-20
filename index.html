@@ -16,13 +16,16 @@
                 <span>当前用户：</span>
                 <div class="user-btn-group">
                     <input type="text" id="user1Name" class="user-name-input" value="用户A" maxlength="10">
-                    <button id="user1Btn" class="user-btn active" onclick="switchUser('user1')">切换</button>
+                    <button id="user1Btn" class="user-btn active" onclick="switchUser('user1')">编辑</button>
+                    <button class="user-btn view-btn" onclick="viewFriendData('user1')">查看</button>
                 </div>
                 <div class="user-btn-group">
                     <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10">
-                    <button id="user2Btn" class="user-btn" onclick="switchUser('user2')">切换</button>
+                    <button id="user2Btn" class="user-btn" onclick="switchUser('user2')">编辑</button>
+                    <button class="user-btn view-btn" onclick="viewFriendData('user2')">查看</button>
                 </div>
             </div>
+            <div id="readOnlyIndicator" style="display: none; font-size: 12px; color: #fff; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 12px; margin-top: 5px;">👁️ 查看模式 - 无法修改数据</div>
             <div class="current-date" id="currentDate">2026-07-20 星期一</div>
             <div class="user-id" id="userIdDisplay" style="font-size: 12px; color: #fff; opacity: 0.7; margin-top: 5px;">正在登录...</div>
         </header>
@@ -238,6 +241,7 @@
         let currentMealType = '';
         let currentHistoryPeriod = 'week';
         let currentUid = null;
+        let isReadOnlyMode = false;
 
         function initFirebase() {
             console.log('Firebase初始化成功');
@@ -258,7 +262,7 @@
         function setupFirestoreListeners() {
             if (!db || !currentUid) return;
             
-            const userDocRef = doc(db, 'users', currentUid);
+            const userDocRef = doc(db, 'users', `${currentUid}_${currentUser}`);
             onSnapshot(userDocRef, (doc) => {
                 if (doc.exists()) {
                     const data = doc.data();
@@ -270,7 +274,7 @@
                 }
             });
             
-            const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid));
+            const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid), where('localUser', '==', currentUser));
             onSnapshot(historyQuery, (snapshot) => {
                 const cloudHistory = [];
                 snapshot.forEach(docSnap => {
@@ -494,11 +498,15 @@
             ['breakfast', 'lunch', 'dinner', 'snack'].forEach(type => {
                 const content = document.getElementById(type + 'Content');
                 const meals = dailyData[currentUser].meals[type];
+                const addBtn = document.querySelector(`#${type} .add-btn`);
+                if (addBtn) {
+                    addBtn.style.display = isReadOnlyMode ? 'none' : 'block';
+                }
                 content.innerHTML = meals.length === 0 ? `
                     <div class="empty-state"><i class="fas fa-utensils"></i><p>暂无记录</p></div>
                 ` : meals.map(meal => `
                     <div class="food-item">
-                        <button class="delete-btn" onclick="deleteMeal('${type}', ${meal.id})">×</button>
+                        ${!isReadOnlyMode ? `<button class="delete-btn" onclick="deleteMeal('${type}', ${meal.id})">×</button>` : ''}
                         ${meal.image ? `<img src="${meal.image}" alt="${meal.name}">` : ''}
                         <h4>${meal.name}</h4>
                         <p>${meal.weight} 克</p>
@@ -512,11 +520,15 @@
         function updateExerciseContent() {
             const content = document.getElementById('exerciseList');
             const exercises = dailyData[currentUser].exercises;
+            const addExerciseBtn = document.querySelector('.add-exercise-btn');
+            if (addExerciseBtn) {
+                addExerciseBtn.style.display = isReadOnlyMode ? 'none' : 'block';
+            }
             content.innerHTML = exercises.length === 0 ? `
                 <div class="empty-state"><i class="fas fa-dumbbell"></i><p>暂无运动记录</p></div>
             ` : exercises.map(exercise => `
                 <div class="exercise-item">
-                    <button class="delete-btn" onclick="deleteExercise(${exercise.id})">×</button>
+                    ${!isReadOnlyMode ? `<button class="delete-btn" onclick="deleteExercise(${exercise.id})">×</button>` : ''}
                     ${exercise.image ? `<img src="${exercise.image}" alt="${exercise.name}">` : ''}
                     <h4>${exercise.name}</h4>
                     <p class="duration"><i class="fas fa-clock"></i> ${exercise.duration} 分钟</p>
@@ -683,19 +695,22 @@
             if (!db || !currentUid) return;
             try {
                 const today = getTodayString();
-                await setDoc(doc(db, 'users', currentUid), {
+                await setDoc(doc(db, 'users', `${currentUid}_${currentUser}`), {
                     dailyData: dailyData[currentUser],
                     userName: document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name')?.value || currentUser,
+                    uid: currentUid,
+                    localUser: currentUser,
                     lastUpdated: new Date()
                 }, { merge: true });
                 
-                await setDoc(doc(db, 'history', `${currentUid}_${today}`), {
+                await setDoc(doc(db, 'history', `${currentUid}_${currentUser}_${today}`), {
                     date: today,
                     caloriesIn: historyData[currentUser].find(h => h.date === today)?.caloriesIn || 0,
                     caloriesOut: historyData[currentUser].find(h => h.date === today)?.caloriesOut || 0,
                     meals: dailyData[currentUser].meals,
                     exercises: dailyData[currentUser].exercises,
                     uid: currentUid,
+                    localUser: currentUser,
                     createdAt: new Date()
                 });
                 
@@ -708,7 +723,7 @@
         async function loadFromFirestore() {
             if (!db || !currentUid) { console.log('Firebase未初始化或未登录，使用本地数据'); return; }
             try {
-                const userDocRef = doc(db, 'users', currentUid);
+                const userDocRef = doc(db, 'users', `${currentUid}_${currentUser}`);
                 const userDoc = await getDoc(userDocRef);
                 if (userDoc.exists()) {
                     const data = userDoc.data();
@@ -719,7 +734,7 @@
                     }
                 }
                 
-                const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid));
+                const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid), where('localUser', '==', currentUser));
                 const historySnapshot = await getDocs(historyQuery);
                 
                 const cloudHistory = [];
@@ -736,6 +751,7 @@
         }
 
         function updateAllContent() {
+            document.getElementById('readOnlyIndicator').style.display = isReadOnlyMode ? 'block' : 'none';
             updateMealContent();
             updateExerciseContent();
             updateSummary();
@@ -802,6 +818,19 @@
         window.previewImage = previewImage;
         window.switchUser = (user) => {
             currentUser = user;
+            isReadOnlyMode = false;
+            document.getElementById('user1Btn').classList.toggle('active', user === 'user1');
+            document.getElementById('user2Btn').classList.toggle('active', user === 'user2');
+            if (currentUid) {
+                loadFromFirestore();
+            } else {
+                updateAllContent();
+            }
+        };
+        
+        window.viewFriendData = (user) => {
+            currentUser = user;
+            isReadOnlyMode = true;
             document.getElementById('user1Btn').classList.toggle('active', user === 'user1');
             document.getElementById('user2Btn').classList.toggle('active', user === 'user2');
             updateAllContent();
