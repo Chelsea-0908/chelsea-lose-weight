@@ -15,12 +15,10 @@
             <div class="user-switch">
                 <span>当前用户：</span>
                 <div class="user-btn-group">
-                    <input type="text" id="user1Name" class="user-name-input" value="用户A" maxlength="10">
-                    <button id="user1Btn" class="user-btn active" onclick="switchUser('user1')">切换</button>
+                    <input type="text" id="user1Name" class="user-name-input" value="用户A" maxlength="10" onclick="switchUser('user1')">
                 </div>
                 <div class="user-btn-group">
-                    <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10">
-                    <button id="user2Btn" class="user-btn" onclick="switchUser('user2')">切换</button>
+                    <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10" onclick="switchUser('user2')">
                 </div>
             </div>
             <div class="current-date" id="currentDate">2026-07-20 星期一</div>
@@ -254,8 +252,6 @@
                         myLocalUser = savedUser;
                         currentUser = savedUser;
                         isReadOnlyMode = false;
-                        loadFromFirestore();
-                        setupFirestoreListeners();
                     } else {
                         const choice = prompt('请选择您的身份：\n1 - 用户A\n2 - 用户B', '1');
                         if (choice === '1' || choice === '2') {
@@ -263,17 +259,21 @@
                             currentUser = myLocalUser;
                             isReadOnlyMode = false;
                             localStorage.setItem('myLocalUser', myLocalUser);
-                            loadFromFirestore();
-                            setupFirestoreListeners();
                         } else {
                             myLocalUser = 'user1';
                             currentUser = 'user1';
                             isReadOnlyMode = false;
                             localStorage.setItem('myLocalUser', 'user1');
-                            loadFromFirestore();
-                            setupFirestoreListeners();
                         }
                     }
+                    
+                    document.getElementById('user1Name').classList.toggle('active', currentUser === 'user1');
+                    document.getElementById('user2Name').classList.toggle('active', currentUser === 'user2');
+                    document.getElementById('user1Name').disabled = myLocalUser !== 'user1';
+                    document.getElementById('user2Name').disabled = myLocalUser !== 'user2';
+                    
+                    loadFromFirestore();
+                    setupFirestoreListeners();
                 })
                 .catch((error) => {
                     console.error('匿名登录失败:', error);
@@ -840,8 +840,12 @@
         window.switchUser = (user) => {
             currentUser = user;
             isReadOnlyMode = user !== myLocalUser;
-            document.getElementById('user1Btn').classList.toggle('active', user === 'user1');
-            document.getElementById('user2Btn').classList.toggle('active', user === 'user2');
+            document.getElementById('user1Name').classList.toggle('active', user === 'user1');
+            document.getElementById('user2Name').classList.toggle('active', user === 'user2');
+            
+            document.getElementById('user1Name').disabled = myLocalUser !== 'user1';
+            document.getElementById('user2Name').disabled = myLocalUser !== 'user2';
+            
             if (currentUid) {
                 loadFromFirestore();
             } else {
