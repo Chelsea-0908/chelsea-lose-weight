@@ -109,3 +109,5 @@ function buildFoodCaloriesMap() {
 }
 
 const foodCalories = buildFoodCaloriesMap();
+
+export { foodCalories };

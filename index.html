@@ -6,31 +6,6 @@
     <title>减脂打卡 - 一起加油</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmZqmJCSVq2gBmK4Xmw",
-            authDomain: "chelsea-lose-weight.firebaseapp.com",
-            projectId: "chelsea-lose-weight",
-            storageBucket: "chelsea-lose-weight.firebasestorage.app",
-            messagingSenderId: "67583269783",
-            appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
-            measurementId: "G-4SPEC4QKQN"
-        };
-        
-        window.firebaseApp = initializeApp(firebaseConfig);
-        window.db = getFirestore(window.firebaseApp);
-        window.auth = getAuth(window.firebaseApp);
-        window.signInAnonymously = signInAnonymously;
-        window.onAuthStateChanged = onAuthStateChanged;
-        
-        console.log('Firebase初始化成功');
-    </script>
 </head>
 <body>
     <div class="container">
@@ -60,7 +35,6 @@
         </nav>
 
         <main>
-            <!-- 饮食打卡区域 -->
             <section id="diet" class="tab-content active">
                 <h2><i class="fas fa-utensils"></i> 今日饮食</h2>
                 <div class="meal-cards">
@@ -87,14 +61,12 @@
                 </div>
             </section>
 
-            <!-- 运动打卡区域 -->
             <section id="exercise" class="tab-content">
                 <h2><i class="fas fa-dumbbell"></i> 今日运动</h2>
                 <div class="exercise-list" id="exerciseList"></div>
                 <button class="add-exercise-btn" onclick="addExercise()">添加运动</button>
             </section>
 
-            <!-- 今日总结区域 -->
             <section id="summary" class="tab-content">
                 <h2><i class="fas fa-chart-line"></i> 今日总结</h2>
                 <div class="summary-cards">
@@ -123,24 +95,19 @@
                 </div>
             </section>
 
-            <!-- 朋友动态区域 -->
             <section id="friend" class="tab-content">
                 <h2><i class="fas fa-users"></i> 朋友动态</h2>
                 <div class="friend-content" id="friendContent"></div>
             </section>
 
-            <!-- 历史记录区域 -->
             <section id="history" class="tab-content">
                 <h2><i class="fas fa-history"></i> 历史记录汇总</h2>
-                
                 <div class="history-tabs">
                     <button class="history-tab active" data-period="week">本周</button>
                     <button class="history-tab" data-period="month">本月</button>
                     <button class="history-tab" data-period="year">本年</button>
                 </div>
-                
                 <div class="history-date-range" id="historyDateRange"></div>
-                
                 <div class="history-summary">
                     <div class="history-card">
                         <h3><i class="fas fa-calendar-check"></i> 打卡天数</h3>
@@ -162,14 +129,12 @@
                         <p class="history-unit">千卡</p>
                     </div>
                 </div>
-                
                 <div class="history-chart">
                     <h3>每日摄入热量趋势</h3>
                     <div class="chart-container">
                         <canvas id="caloriesChart"></canvas>
                     </div>
                 </div>
-                
                 <div class="history-detail">
                     <h3>详细记录</h3>
                     <div class="detail-list" id="detailList"></div>
@@ -178,7 +143,6 @@
         </main>
     </div>
 
-    <!-- 添加饮食弹窗 -->
     <div id="mealModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('mealModal')">&times;</span>
@@ -201,7 +165,6 @@
         </div>
     </div>
 
-    <!-- 添加运动弹窗 -->
     <div id="exerciseModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('exerciseModal')">&times;</span>
@@ -226,7 +189,629 @@
         </div>
     </div>
 
-    <script src="food-database.js"></script>
-    <script src="script.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmJCSVq2gBmK4Xmw",
+            authDomain: "chelsea-lose-weight.firebaseapp.com",
+            projectId: "chelsea-lose-weight",
+            storageBucket: "chelsea-lose-weight.firebasestorage.app",
+            messagingSenderId: "67583269783",
+            appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
+            measurementId: "G-4SPEC4QKQN"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getFirestore(firebaseApp);
+        const auth = getAuth(firebaseApp);
+
+        const foodCalories = {};
+        const foodDatabase = {
+            '油脂类': {'花生油': 900, '粟米油': 900, '芥花籽油': 900, '橄榄油': 900, '软人造牛油': 670, '硬人造牛油': 730, '牛油': 740, '猪油': 900},
+            '烘焙食品': {'芝士蛋糕': 320, '杂款西饼': 330, '净牛油蛋糕': 420, '松饼': 390, '忌廉包': 280, '蒜蓉包': 370, '鸡尾包': 400, '吞拿鱼酥皮卷': 360, '咖喱酥皮卷': 400, '薄饼面包': 260, '蛋挞': 370, '叉烧酥': 430, '奶油包': 280, '菠萝包': 300, '丹麦酥': 410},
+            '奶及奶制品': {'全脂奶': 64, '植脂淡奶': 120, '搅拌忌廉': 350, '软雪糕': 150, '雪糕': 180, '酸奶': 80, '芝士': 300},
+            '快餐食物': {'白汁鸡丝饭': 140, '焗肉酱意粉': 140, '肉丝炒面': 160, '扬州炒饭': 190, '芝士汉堡包': 240, '鱼柳包': 280, '吞拿鱼三文治': 210, '蛋沙律三文治': 200, '酥皮忌廉汤': 130, '奶昔': 110, '班戟': 310, '汉堡包': 245, '薯条': 285, '炸鸡': 275, '披萨': 285},
+            '点心食物': {'咖喱鱼蛋': 130, '煎酿三宝': 110, '臭豆腐': 150, '春卷': 320, '芋角': 360, '咸水角': 330, '叉烧酥': 430, '豆沙锅饼': 320, '葱油饼': 360, '印度薄饼': 320, '虾饺': 100, '烧卖': 120, '小笼包': 200, '蒸排骨': 150, '凤爪': 140},
+            '蔬菜类': {'包菜': 22, '卷心菜': 22, '椰菜': 22, '西兰花': 33, '菠菜': 21, '黄瓜': 10, '番茄': 18, '胡萝卜': 41, '菜花': 25, '芹菜': 16, '生菜': 12, '白萝卜': 18, '土豆': 77, '茄子': 25, '青椒': 20, '洋葱': 39, '南瓜': 26, '冬瓜': 13, '苦瓜': 19, '丝瓜': 20, '豆角': 30, '韭菜': 25, '大白菜': 14, '小白菜': 16, '苋菜': 25, '空心菜': 22, '芥兰': 25, '菜心': 23, '生菜': 12, '茼蒿': 20, '油麦菜': 18, '莴笋': 14, '竹笋': 23, '蘑菇': 26, '金针菇': 26, '木耳': 20, '海带': 25, '紫菜': 20},
+            '水果类': {'苹果': 59, '香蕉': 89, '橙子': 47, '梨': 58, '葡萄': 70, '西瓜': 30, '草莓': 32, '蓝莓': 57, '芒果': 60, '桃子': 40, '菠萝': 48, '荔枝': 70, '龙眼': 72, '樱桃': 46, '柚子': 41, '猕猴桃': 59, '木瓜': 39, '榴莲': 147, '山竹': 69, '火龙果': 51, '椰子': 354, '石榴': 70, '百香果': 70, '柠檬': 29, '牛油果': 160, '哈密瓜': 41, '杨梅': 28, '枇杷': 41, '桑葚': 49},
+            '肉类': {'鸡胸肉': 165, '鸡腿肉': 198, '瘦牛肉': 105, '肥牛肉': 330, '瘦猪肉': 143, '肥猪肉': 615, '羊肉': 203, '鸭肉': 180, '鹅肉': 245, '兔肉': 102, '驴肉': 116, '狗肉': 116},
+            '海鲜类': {'三文鱼': 208, '鳕鱼': 82, '龙利鱼': 82, '鲈鱼': 105, '草鱼': 113, '鲤鱼': 108, '鲫鱼': 108, '虾': 81, '蟹': 85, '贝类': 80, '鱿鱼': 81, '章鱼': 93, '墨鱼': 83, '生蚝': 60, '鲍鱼': 84, '海参': 71},
+            '蛋类': {'鸡蛋': 143, '鸡蛋白': 60, '鸭蛋': 180, '鹅蛋': 190, '鹌鹑蛋': 160},
+            '主食类': {'白饭': 116, '糙米饭': 111, '燕麦': 389, '玉米': 106, '红薯': 86, '土豆': 77, '面条': 285, '全麦面包': 260, '白面包': 280, '馒头': 286, '包子': 250, '饺子': 280, '粽子': 340, '汤圆': 250},
+            '豆制品': {'豆腐': 70, '豆浆': 14, '腐竹': 450, '豆干': 150, '红豆': 300, '绿豆': 290, '黄豆': 390, '黑豆': 380},
+            '坚果类': {'核桃': 654, '杏仁': 575, '腰果': 553, '花生': 567, '芝麻': 530, '瓜子': 550, '开心果': 614, '碧根果': 670, '夏威夷果': 718, '榛子': 628},
+            '饮料类': {'白开水': 0, '矿泉水': 0, '绿茶': 1, '红茶': 1, '咖啡': 1, '奶茶': 120, '可乐': 43, '果汁': 55, '牛奶': 64, '酸奶': 80, '豆浆': 14},
+            '零食类': {'薯片': 536, '巧克力': 539, '饼干': 450, '糖果': 400, '果冻': 100, '方便面': 473, '火腿肠': 210, '牛肉干': 450, '海苔': 350, '话梅': 350}
+        };
+
+        for (const category in foodDatabase) {
+            for (const food in foodDatabase[category]) {
+                foodCalories[food] = foodDatabase[category][food];
+            }
+        }
+
+        let currentUser = 'user1';
+        let currentMealType = '';
+        let currentHistoryPeriod = 'week';
+        let currentUid = null;
+
+        function initFirebase() {
+            console.log('Firebase初始化成功');
+            signInAnonymously(auth)
+                .then((userCredential) => {
+                    currentUid = userCredential.user.uid;
+                    console.log('匿名登录成功，UID:', currentUid);
+                    loadFromFirestore();
+                    setupFirestoreListeners();
+                })
+                .catch((error) => {
+                    console.error('匿名登录失败:', error);
+                });
+        }
+
+        function setupFirestoreListeners() {
+            if (!db || !currentUid) return;
+            
+            const userDocRef = doc(db, 'users', currentUid);
+            onSnapshot(userDocRef, (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data();
+                    if (data.dailyData) {
+                        dailyData[currentUser] = data.dailyData;
+                        console.log('实时同步：收到用户数据更新');
+                        updateAllContent();
+                    }
+                }
+            });
+            
+            const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid));
+            onSnapshot(historyQuery, (snapshot) => {
+                const cloudHistory = [];
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    cloudHistory.push({ date: data.date, caloriesIn: data.caloriesIn, caloriesOut: data.caloriesOut, meals: data.meals, exercises: data.exercises });
+                });
+                if (cloudHistory.length > 0) {
+                    historyData[currentUser] = cloudHistory;
+                    console.log('实时同步：收到历史数据更新');
+                    updateHistory();
+                }
+            });
+        }
+
+        let dailyData = {
+            user1: { meals: { breakfast: [], lunch: [], dinner: [], snack: [] }, exercises: [] },
+            user2: { meals: { breakfast: [], lunch: [], dinner: [], snack: [] }, exercises: [] }
+        };
+
+        let historyData = { user1: [], user2: [] };
+
+        const exerciseCalories = { running: 300, cycling: 250, swimming: 350, yoga: 100, weights: 200, cardio: 280, basketball: 270, badminton: 200, other: 150 };
+
+        function getTodayString() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        function getDateRange(period) {
+            const dates = [];
+            const now = new Date();
+            let startDate, endDate;
+            switch(period) {
+                case 'week':
+                    const dayOfWeek = now.getDay();
+                    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                    startDate = new Date(now);
+                    startDate.setDate(startDate.getDate() - daysSinceMonday);
+                    endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + 6);
+                    break;
+                case 'month':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    break;
+                case 'year':
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                    endDate = new Date(now.getFullYear(), 11, 31);
+                    break;
+            }
+            while (startDate <= endDate) {
+                dates.push({
+                    date: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`,
+                    label: period === 'week' ? ['日', '一', '二', '三', '四', '五', '六'][startDate.getDay()] : 
+                           period === 'month' ? `${startDate.getDate()}日` : `${startDate.getMonth() + 1}月`
+                });
+                startDate.setDate(startDate.getDate() + 1);
+            }
+            return dates;
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'summary') updateSummary();
+                else if (btn.dataset.tab === 'friend') updateFriendContent();
+                else if (btn.dataset.tab === 'history') updateHistory();
+            });
+        });
+
+        document.querySelectorAll('.history-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.history-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentHistoryPeriod = btn.dataset.period;
+                updateHistory();
+            });
+        });
+
+        function addMeal(type) {
+            currentMealType = type;
+            document.getElementById('mealName').value = '';
+            document.getElementById('mealWeight').value = '';
+            document.getElementById('mealCalories').value = '';
+            document.getElementById('manualCalories').checked = false;
+            document.getElementById('mealCalories').style.display = 'none';
+            document.getElementById('mealImage').value = '';
+            document.getElementById('mealPreview').src = '';
+            document.getElementById('mealPreview').style.display = 'none';
+            document.getElementById('snackCaloriesInput').style.display = type === 'snack' ? 'block' : 'none';
+            document.getElementById('mealModal').style.display = 'block';
+        }
+
+        function toggleManualCalories() {
+            const checkbox = document.getElementById('manualCalories');
+            document.getElementById('mealCalories').style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        function addExercise() {
+            document.getElementById('exerciseType').value = '';
+            document.getElementById('exerciseDuration').value = '';
+            document.getElementById('exerciseDesc').value = '';
+            document.getElementById('exerciseImage').value = '';
+            document.getElementById('exercisePreview').src = '';
+            document.getElementById('exercisePreview').style.display = 'none';
+            document.getElementById('exerciseModal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function previewImage(inputId, previewId) {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function estimateCaloriesByWeight(name, weight) {
+            let calories = 0;
+            const text = name.toLowerCase();
+            for (let food in foodCalories) {
+                if (text.includes(food.toLowerCase())) {
+                    calories += foodCalories[food];
+                }
+            }
+            if (calories === 0) calories = 50;
+            return Math.round((calories / 100) * weight);
+        }
+
+        function saveMeal() {
+            const name = document.getElementById('mealName').value;
+            const weight = parseInt(document.getElementById('mealWeight').value) || 100;
+            const imageInput = document.getElementById('mealImage');
+            if (!name) { alert('请输入食物名称'); return; }
+            
+            let calories = 0;
+            const isManualCalories = document.getElementById('manualCalories').checked;
+            if (isManualCalories) {
+                const kjPer100g = parseInt(document.getElementById('mealCalories').value) || 0;
+                calories = Math.round((kjPer100g / 100) * weight / 4.184);
+            } else {
+                calories = estimateCaloriesByWeight(name, weight);
+            }
+            
+            let imageSrc = '';
+            if (imageInput.files && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageSrc = e.target.result;
+                    saveMealData(name, weight, calories, imageSrc);
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            } else {
+                saveMealData(name, weight, calories, '');
+            }
+        }
+
+        function saveMealData(name, weight, calories, imageSrc) {
+            const meal = { id: Date.now(), name: name || '未命名食物', weight: weight, image: imageSrc, calories: calories, time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) };
+            dailyData[currentUser].meals[currentMealType].push(meal);
+            closeModal('mealModal');
+            updateMealContent();
+            updateSummary();
+            saveToFirestore();
+            saveToHistory();
+        }
+
+        function deleteMeal(mealType, mealId) {
+            dailyData[currentUser].meals[mealType] = dailyData[currentUser].meals[mealType].filter(meal => meal.id !== mealId);
+            updateMealContent();
+            updateSummary();
+            saveToFirestore();
+            saveToHistory();
+        }
+
+        function saveExercise() {
+            const type = document.getElementById('exerciseType').value;
+            const duration = parseInt(document.getElementById('exerciseDuration').value) || 30;
+            const desc = document.getElementById('exerciseDesc').value;
+            const imageInput = document.getElementById('exerciseImage');
+            if (!type) { alert('请选择运动类型'); return; }
+            
+            let imageSrc = '';
+            if (imageInput.files && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageSrc = e.target.result;
+                    saveExerciseData(type, duration, desc, imageSrc);
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            } else {
+                saveExerciseData(type, duration, desc, '');
+            }
+        }
+
+        function saveExerciseData(type, duration, desc, imageSrc) {
+            const baseCalories = exerciseCalories[type] || 150;
+            const calories = Math.round((baseCalories / 30) * duration);
+            const exerciseNames = { running: '跑步', cycling: '骑行', swimming: '游泳', yoga: '瑜伽', weights: '力量训练', cardio: '有氧操', basketball: '篮球', badminton: '羽毛球', other: '其他运动' };
+            const exercise = { id: Date.now(), type: type, name: exerciseNames[type], duration: duration, desc: desc, image: imageSrc, calories: calories, time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) };
+            dailyData[currentUser].exercises.push(exercise);
+            closeModal('exerciseModal');
+            updateExerciseContent();
+            updateSummary();
+            saveToFirestore();
+            saveToHistory();
+        }
+
+        function updateMealContent() {
+            ['breakfast', 'lunch', 'dinner', 'snack'].forEach(type => {
+                const content = document.getElementById(type + 'Content');
+                const meals = dailyData[currentUser].meals[type];
+                content.innerHTML = meals.length === 0 ? `
+                    <div class="empty-state"><i class="fas fa-utensils"></i><p>暂无记录</p></div>
+                ` : meals.map(meal => `
+                    <div class="food-item">
+                        <button class="delete-btn" onclick="deleteMeal('${type}', ${meal.id})">×</button>
+                        ${meal.image ? `<img src="${meal.image}" alt="${meal.name}">` : ''}
+                        <h4>${meal.name}</h4>
+                        <p>${meal.weight} 克</p>
+                        <p class="calories">${meal.calories} 千卡</p>
+                        <p class="time">${meal.time}</p>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function updateExerciseContent() {
+            const content = document.getElementById('exerciseList');
+            const exercises = dailyData[currentUser].exercises;
+            content.innerHTML = exercises.length === 0 ? `
+                <div class="empty-state"><i class="fas fa-dumbbell"></i><p>暂无运动记录</p></div>
+            ` : exercises.map(exercise => `
+                <div class="exercise-item">
+                    <button class="delete-btn" onclick="deleteExercise(${exercise.id})">×</button>
+                    ${exercise.image ? `<img src="${exercise.image}" alt="${exercise.name}">` : ''}
+                    <h4>${exercise.name}</h4>
+                    <p class="duration"><i class="fas fa-clock"></i> ${exercise.duration} 分钟</p>
+                    ${exercise.desc ? `<p>${exercise.desc}</p>` : ''}
+                    <p class="burned">消耗: ${exercise.calories} 千卡</p>
+                    <p class="time">${exercise.time}</p>
+                </div>
+            `).join('');
+        }
+
+        function deleteExercise(exerciseId) {
+            dailyData[currentUser].exercises = dailyData[currentUser].exercises.filter(exercise => exercise.id !== exerciseId);
+            updateExerciseContent();
+            updateSummary();
+            saveToFirestore();
+            saveToHistory();
+        }
+
+        function updateSummary() {
+            const meals = dailyData[currentUser].meals;
+            const exercises = dailyData[currentUser].exercises;
+            let caloriesIn = 0;
+            Object.values(meals).forEach(mealList => mealList.forEach(meal => caloriesIn += meal.calories));
+            let caloriesOut = 0;
+            exercises.forEach(exercise => caloriesOut += exercise.calories);
+            const netCalories = caloriesIn - caloriesOut;
+            const target = 500;
+            
+            document.getElementById('caloriesIn').textContent = caloriesIn;
+            document.getElementById('caloriesOut').textContent = caloriesOut;
+            document.getElementById('netCalories').textContent = netCalories;
+            const progress = Math.min(100, (caloriesOut / target) * 100);
+            document.getElementById('progressFill').style.width = progress + '%';
+            const remaining = Math.max(0, target - caloriesOut);
+            document.getElementById('progressText').textContent = remaining === 0 ? '🎉 恭喜！今日目标达成！' : `距离目标还差 ${remaining} 千卡`;
+        }
+
+        function updateFriendContent() {
+            const friendUser = currentUser === 'user1' ? 'user2' : 'user1';
+            const friendName = currentUser === 'user1' ? document.getElementById('user2Name').value || '用户B' : document.getElementById('user1Name').value || '用户A';
+            const data = dailyData[friendUser];
+            const meals = data.meals;
+            const exercises = data.exercises;
+            
+            let mealsHtml = '';
+            const mealNames = {breakfast: '早餐', lunch: '午餐', dinner: '晚餐', snack: '加餐'};
+            Object.keys(meals).forEach(type => {
+                if (meals[type].length > 0) {
+                    mealsHtml += `<div class="friend-meals"><h4>${mealNames[type]}</h4>` + meals[type].map(meal => `
+                        <div class="friend-meal-item"><strong>${meal.name}</strong> - ${meal.calories}千卡${meal.time ? `<span style="float:right">${meal.time}</span>` : ''}</div>
+                    `).join('') + '</div>';
+                }
+            });
+            
+            let exercisesHtml = '';
+            if (exercises.length > 0) {
+                exercisesHtml += `<div class="friend-exercises"><h4>运动</h4>` + exercises.map(exercise => `
+                    <div class="friend-exercise-item"><strong>${exercise.name}</strong> - ${exercise.duration}分钟<span style="float:right">消耗 ${exercise.calories}千卡</span></div>
+                `).join('') + '</div>';
+            }
+            
+            const totalCaloriesIn = Object.values(meals).reduce((sum, list) => sum + list.reduce((s, m) => s + m.calories, 0), 0);
+            const totalCaloriesOut = exercises.reduce((sum, e) => sum + e.calories, 0);
+            const netCalories = totalCaloriesIn - totalCaloriesOut;
+            
+            document.getElementById('friendContent').innerHTML = `
+                <div class="friend-section">
+                    <h3>${friendName} 的今日打卡</h3>
+                    ${mealsHtml || '<p style="color:#999">暂无饮食记录</p>'}
+                    ${exercisesHtml || '<p style="color:#999">暂无运动记录</p>'}
+                    <div style="margin-top:20px; padding-top:15px; border-top:1px solid #ddd;">
+                        <p><strong>摄入:</strong> ${totalCaloriesIn}千卡</p>
+                        <p><strong>消耗:</strong> ${totalCaloriesOut}千卡</p>
+                        <p><strong>净热量:</strong> ${netCalories}千卡</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateHistory() {
+            const dates = getDateRange(currentHistoryPeriod);
+            const history = historyData[currentUser];
+            const dateRangeElement = document.getElementById('historyDateRange');
+            if (dates.length > 0) {
+                const startDate = dates[0].date;
+                const endDate = dates[dates.length - 1].date;
+                dateRangeElement.textContent = `日期范围：${startDate} 至 ${endDate}`;
+            }
+            
+            let totalDays = 0, totalCaloriesIn = 0, totalCaloriesOut = 0;
+            const dailyStats = [];
+            dates.forEach(dateInfo => {
+                const dayData = history.find(h => h.date === dateInfo.date);
+                if (dayData) { totalDays++; totalCaloriesIn += dayData.caloriesIn; totalCaloriesOut += dayData.caloriesOut; }
+                dailyStats.push({ date: dateInfo.date, label: dateInfo.label, caloriesIn: dayData ? dayData.caloriesIn : 0 });
+            });
+            
+            const avgNetCalories = totalDays > 0 ? Math.round((totalCaloriesIn - totalCaloriesOut) / totalDays) : 0;
+            document.getElementById('historyDays').textContent = totalDays;
+            document.getElementById('historyCaloriesIn').textContent = totalCaloriesIn;
+            document.getElementById('historyCaloriesOut').textContent = totalCaloriesOut;
+            document.getElementById('historyNetAvg').textContent = avgNetCalories;
+            
+            updateChart(dailyStats);
+            updateDetailList(history, dates);
+        }
+
+        function updateChart(dailyStats) {
+            const chartElement = document.getElementById('caloriesChart');
+            if (!chartElement) return;
+            const chartContainer = chartElement.parentNode;
+            if (dailyStats.length === 0) {
+                chartContainer.innerHTML = '<div class="empty-history"><i class="fas fa-chart-bar"></i><p>暂无数据</p></div>';
+                return;
+            }
+            const maxValue = Math.max(...dailyStats.map(d => d.caloriesIn), 1);
+            chartContainer.innerHTML = `<div class="chart-bars">${dailyStats.map(day => `
+                <div class="chart-bar" style="height: ${(day.caloriesIn / maxValue) * 100}%">
+                    <span class="chart-bar-value">${day.caloriesIn}</span>
+                    <span class="chart-bar-label">${day.label}</span>
+                </div>
+            `).join('')}</div><div class="chart-axis"></div>`;
+        }
+
+        function updateDetailList(history, dates) {
+            const detailList = document.getElementById('detailList');
+            const filteredHistory = history.filter(h => dates.some(d => d.date === h.date)).sort((a, b) => new Date(b.date) - new Date(a.date));
+            detailList.innerHTML = filteredHistory.length === 0 ? '<div class="empty-history"><i class="fas fa-calendar"></i><p>暂无记录</p></div>' : filteredHistory.map(day => {
+                const dateObj = new Date(day.date);
+                const weekDay = ['日', '一', '二', '三', '四', '五', '六'][dateObj.getDay()];
+                return `<div class="detail-item">
+                    <span class="detail-date">${dateObj.getMonth() + 1}月${dateObj.getDate()}日 (周${weekDay})</span>
+                    <div class="detail-calories">
+                        <span>摄入: ${day.caloriesIn}千卡</span>
+                        <span>消耗: ${day.caloriesOut}千卡</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function saveToHistory() {
+            const today = getTodayString();
+            const meals = dailyData[currentUser].meals;
+            const exercises = dailyData[currentUser].exercises;
+            
+            let caloriesIn = 0;
+            Object.values(meals).forEach(mealList => mealList.forEach(meal => caloriesIn += meal.calories));
+            let caloriesOut = 0;
+            exercises.forEach(exercise => caloriesOut += exercise.calories);
+            
+            const existingIndex = historyData[currentUser].findIndex(h => h.date === today);
+            const dayData = { date: today, caloriesIn: caloriesIn, caloriesOut: caloriesOut, meals: JSON.parse(JSON.stringify(meals)), exercises: JSON.parse(JSON.stringify(exercises)) };
+            
+            if (existingIndex >= 0) {
+                historyData[currentUser][existingIndex] = dayData;
+            } else {
+                historyData[currentUser].push(dayData);
+            }
+            
+            saveToFirestore();
+        }
+
+        async function saveToFirestore() {
+            if (!db || !currentUid) return;
+            try {
+                const today = getTodayString();
+                await setDoc(doc(db, 'users', currentUid), {
+                    dailyData: dailyData[currentUser],
+                    userName: document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name')?.value || currentUser,
+                    lastUpdated: new Date()
+                }, { merge: true });
+                
+                await setDoc(doc(db, 'history', `${currentUid}_${today}`), {
+                    date: today,
+                    caloriesIn: historyData[currentUser].find(h => h.date === today)?.caloriesIn || 0,
+                    caloriesOut: historyData[currentUser].find(h => h.date === today)?.caloriesOut || 0,
+                    meals: dailyData[currentUser].meals,
+                    exercises: dailyData[currentUser].exercises,
+                    uid: currentUid,
+                    createdAt: new Date()
+                });
+                
+                console.log('数据已同步到Firestore');
+            } catch (error) {
+                console.error('保存到Firestore失败:', error);
+            }
+        }
+
+        async function loadFromFirestore() {
+            if (!db || !currentUid) { console.log('Firebase未初始化或未登录，使用本地数据'); return; }
+            try {
+                const userDocRef = doc(db, 'users', currentUid);
+                const userDoc = await getDoc(userDocRef);
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    if (data.dailyData) { dailyData[currentUser] = data.dailyData; console.log('从Firestore加载每日数据成功'); }
+                    if (data.userName) {
+                        const nameInput = document.getElementById(currentUser === 'user1' ? 'user1Name' : 'user2Name');
+                        if (nameInput) nameInput.value = data.userName;
+                    }
+                }
+                
+                const historyQuery = query(collection(db, 'history'), where('uid', '==', currentUid));
+                const historySnapshot = await getDocs(historyQuery);
+                
+                const cloudHistory = [];
+                historySnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    cloudHistory.push({ date: data.date, caloriesIn: data.caloriesIn, caloriesOut: data.caloriesOut, meals: data.meals, exercises: data.exercises });
+                });
+                
+                if (cloudHistory.length > 0) { historyData[currentUser] = cloudHistory; console.log('从Firestore加载历史数据成功'); }
+                updateAllContent();
+            } catch (error) {
+                console.error('从Firestore加载数据失败:', error);
+            }
+        }
+
+        function updateAllContent() {
+            updateMealContent();
+            updateExerciseContent();
+            updateSummary();
+            updateFriendContent();
+            updateHistory();
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) e.target.style.display = 'none';
+        });
+
+        function addSampleHistoryData() {
+            const now = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                historyData.user1.push({ date: dateStr, caloriesIn: 1500 + Math.floor(Math.random() * 500), caloriesOut: 300 + Math.floor(Math.random() * 400), meals: {}, exercises: [] });
+                historyData.user2.push({ date: dateStr, caloriesIn: 1400 + Math.floor(Math.random() * 400), caloriesOut: 250 + Math.floor(Math.random() * 350), meals: {}, exercises: [] });
+            }
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            while (firstDay < now) {
+                const dateStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+                if (!historyData.user1.some(h => h.date === dateStr)) {
+                    historyData.user1.push({ date: dateStr, caloriesIn: 1400 + Math.floor(Math.random() * 600), caloriesOut: 200 + Math.floor(Math.random() * 500), meals: {}, exercises: [] });
+                    historyData.user2.push({ date: dateStr, caloriesIn: 1300 + Math.floor(Math.random() * 500), caloriesOut: 180 + Math.floor(Math.random() * 450), meals: {}, exercises: [] });
+                }
+                firstDay.setDate(firstDay.getDate() + 1);
+            }
+            updateHistory();
+        }
+
+        function addSampleData() {
+            dailyData.user1.meals.breakfast = [{id: 1, name: '鸡蛋', weight: 50, image: '', calories: 72, time: '07:30'}, {id: 2, name: '牛奶', weight: 200, image: '', calories: 128, time: '07:30'}];
+            dailyData.user1.meals.lunch = [{id: 3, name: '白饭', weight: 150, image: '', calories: 174, time: '12:00'}, {id: 4, name: '鸡胸肉', weight: 100, image: '', calories: 165, time: '12:00'}, {id: 5, name: '西兰花', weight: 100, image: '', calories: 33, time: '12:00'}, {id: 6, name: '胡萝卜', weight: 50, image: '', calories: 21, time: '12:00'}];
+            dailyData.user1.meals.dinner = [{id: 7, name: '包菜', weight: 200, image: '', calories: 44, time: '18:30'}, {id: 8, name: '番茄', weight: 100, image: '', calories: 18, time: '18:30'}, {id: 9, name: '鸡蛋', weight: 100, image: '', calories: 143, time: '18:30'}];
+            dailyData.user1.meals.snack = [{id: 10, name: '苹果', weight: 150, image: '', calories: 89, time: '15:00'}, {id: 11, name: '黄瓜', weight: 100, image: '', calories: 10, time: '10:30'}];
+            dailyData.user1.exercises = [{id: 12, type: 'running', name: '跑步', duration: 30, desc: '慢跑', image: '', calories: 300, time: '08:00'}];
+            
+            dailyData.user2.meals.breakfast = [{id: 13, name: '燕麦', weight: 50, image: '', calories: 195, time: '07:00'}, {id: 14, name: '香蕉', weight: 100, image: '', calories: 89, time: '07:00'}];
+            dailyData.user2.meals.lunch = [{id: 15, name: '白饭', weight: 100, image: '', calories: 116, time: '12:30'}, {id: 16, name: '瘦牛肉', weight: 100, image: '', calories: 105, time: '12:30'}, {id: 17, name: '菠菜', weight: 100, image: '', calories: 21, time: '12:30'}, {id: 18, name: '生菜', weight: 50, image: '', calories: 6, time: '12:30'}];
+            dailyData.user2.meals.dinner = [{id: 19, name: '冬瓜', weight: 200, image: '', calories: 26, time: '18:00'}, {id: 20, name: '豆腐', weight: 100, image: '', calories: 70, time: '18:00'}, {id: 21, name: '白萝卜', weight: 100, image: '', calories: 18, time: '18:00'}];
+            dailyData.user2.meals.snack = [{id: 22, name: '草莓', weight: 100, image: '', calories: 32, time: '15:00'}, {id: 23, name: '橙子', weight: 150, image: '', calories: 71, time: '14:00'}];
+            dailyData.user2.exercises = [{id: 24, type: 'yoga', name: '瑜伽', duration: 45, desc: '晨间瑜伽', image: '', calories: 150, time: '07:30'}];
+            
+            updateAllContent();
+            addSampleHistoryData();
+        }
+
+        function showCurrentDate() {
+            const now = new Date();
+            const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            document.getElementById('currentDate').textContent = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekDays[now.getDay()]}`;
+        }
+
+        window.addMeal = addMeal;
+        window.addExercise = addExercise;
+        window.closeModal = closeModal;
+        window.toggleManualCalories = toggleManualCalories;
+        window.saveMeal = saveMeal;
+        window.saveExercise = saveExercise;
+        window.deleteMeal = deleteMeal;
+        window.deleteExercise = deleteExercise;
+        window.previewImage = previewImage;
+        window.switchUser = (user) => {
+            currentUser = user;
+            document.getElementById('user1Btn').classList.toggle('active', user === 'user1');
+            document.getElementById('user2Btn').classList.toggle('active', user === 'user2');
+            updateAllContent();
+        };
+
+        addSampleData();
+        showCurrentDate();
+        initFirebase();
+
+        window.addEventListener('beforeunload', () => {
+            saveToHistory();
+            saveToFirestore();
+        });
+    </script>
 </body>
 </html>
