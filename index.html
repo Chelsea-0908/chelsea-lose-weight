@@ -418,11 +418,44 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
+                    compressImage(e.target.result, 400, 0.6).then(compressedSrc => {
+                        preview.src = compressedSrc;
+                        preview.style.display = 'block';
+                    });
                 };
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+
+        function compressImage(src, maxWidth, quality) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = function() {
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const compressedSrc = canvas.toDataURL('image/jpeg', quality);
+                    const sizeKB = Math.round(compressedSrc.length / 1024);
+                    console.log(`图片压缩: ${img.width}x${img.height} → ${width}x${height}, ${sizeKB}KB`);
+                    resolve(compressedSrc);
+                };
+                img.onerror = function() {
+                    console.error('图片压缩失败，使用原图');
+                    resolve(src);
+                };
+                img.src = src;
+            });
         }
 
         function estimateCaloriesByWeight(name, weight) {
@@ -452,12 +485,12 @@
                 calories = estimateCaloriesByWeight(name, weight);
             }
             
-            let imageSrc = '';
             if (imageInput.files && imageInput.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    imageSrc = e.target.result;
-                    saveMealData(name, weight, calories, imageSrc);
+                    compressImage(e.target.result, 400, 0.6).then(compressedSrc => {
+                        saveMealData(name, weight, calories, compressedSrc);
+                    });
                 };
                 reader.readAsDataURL(imageInput.files[0]);
             } else {
@@ -490,12 +523,12 @@
             const imageInput = document.getElementById('exerciseImage');
             if (!type) { alert('请选择运动类型'); return; }
             
-            let imageSrc = '';
             if (imageInput.files && imageInput.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    imageSrc = e.target.result;
-                    saveExerciseData(type, duration, desc, imageSrc);
+                    compressImage(e.target.result, 400, 0.6).then(compressedSrc => {
+                        saveExerciseData(type, duration, desc, compressedSrc);
+                    });
                 };
                 reader.readAsDataURL(imageInput.files[0]);
             } else {
@@ -600,7 +633,13 @@
             Object.keys(meals).forEach(type => {
                 if (meals[type].length > 0) {
                     mealsHtml += `<div class="friend-meals"><h4>${mealNames[type]}</h4>` + meals[type].map(meal => `
-                        <div class="friend-meal-item"><strong>${meal.name}</strong> - ${meal.calories}千卡${meal.time ? `<span style="float:right">${meal.time}</span>` : ''}</div>
+                        <div class="friend-meal-item">
+                            ${meal.image ? `<img src="${meal.image}" alt="${meal.name}">` : ''}
+                            <div class="meal-info">
+                                <strong>${meal.name}</strong> - ${meal.weight}克 / ${meal.calories}千卡
+                                ${meal.time ? `<span style="float:right">${meal.time}</span>` : ''}
+                            </div>
+                        </div>
                     `).join('') + '</div>';
                 }
             });
@@ -608,7 +647,13 @@
             let exercisesHtml = '';
             if (exercises.length > 0) {
                 exercisesHtml += `<div class="friend-exercises"><h4>运动</h4>` + exercises.map(exercise => `
-                    <div class="friend-exercise-item"><strong>${exercise.name}</strong> - ${exercise.duration}分钟<span style="float:right">消耗 ${exercise.calories}千卡</span></div>
+                    <div class="friend-exercise-item">
+                        ${exercise.image ? `<img src="${exercise.image}" alt="${exercise.name}">` : ''}
+                        <div class="exercise-info">
+                            <strong>${exercise.name}</strong> - ${exercise.duration}分钟
+                            <span style="float:right">消耗 ${exercise.calories}千卡</span>
+                        </div>
+                    </div>
                 `).join('') + '</div>';
             }
             
