@@ -8,8 +8,22 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <div id="loadingOverlay" style="
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 9999; transition: opacity 0.5s;
+    ">
+        <div style="
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        "></div>
+        <p style="color: white; font-size: 18px; font-weight: bold;">正在加载...</p>
+        <p id="loadingStatus" style="color: rgba(255,255,255,0.8); font-size: 14px; margin-top: 10px;">连接服务器中...</p>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    </div>
     <div class="container">
-        <header>
             <h1><i class="fas fa-heartbeat"></i> 减脂打卡</h1>
             <p class="subtitle">和朋友一起，见证更好的自己</p>
             <div class="user-switch">
@@ -335,12 +349,24 @@
         }
 
         function initFirebase() {
-            console.log('Firebase初始化成功');
+            const statusEl = document.getElementById('userIdDisplay');
+            const loadingStatus = document.getElementById('loadingStatus');
+            statusEl.textContent = '正在登录...';
+            
+            let loginTimeout = setTimeout(() => {
+                if (!currentUid) {
+                    console.warn('登录超时');
+                    loadingStatus.textContent = '登录超时，请检查网络';
+                }
+            }, 10000);
+            
             signInAnonymously(auth)
                 .then((userCredential) => {
+                    clearTimeout(loginTimeout);
                     currentUid = userCredential.user.uid;
                     console.log('匿名登录成功，UID:', currentUid);
-                    document.getElementById('userIdDisplay').textContent = `用户ID: ${currentUid.substring(0, 8)}...`;
+                    statusEl.textContent = `用户ID: ${currentUid.substring(0, 8)}...`;
+                    hideLoading();
                     
                     const savedUser = localStorage.getItem('myLocalUser');
                     if (savedUser) {
@@ -348,32 +374,107 @@
                         currentUser = savedUser;
                         isReadOnlyMode = false;
                     } else {
-                        const choice = prompt('请选择您的身份：\n1 - 用户A\n2 - 用户B', '1');
-                        if (choice === '1' || choice === '2') {
-                            myLocalUser = choice === '1' ? 'user1' : 'user2';
-                            currentUser = myLocalUser;
-                            isReadOnlyMode = false;
-                            localStorage.setItem('myLocalUser', myLocalUser);
-                        } else {
-                            myLocalUser = 'user1';
-                            currentUser = 'user1';
-                            isReadOnlyMode = false;
-                            localStorage.setItem('myLocalUser', 'user1');
-                        }
+                        showUserChoiceModal();
+                        return;
                     }
                     
-                    document.getElementById('user1Name').classList.toggle('active', currentUser === 'user1');
-                    document.getElementById('user2Name').classList.toggle('active', currentUser === 'user2');
-                    document.getElementById('user1Name').disabled = myLocalUser !== 'user1';
-                    document.getElementById('user2Name').disabled = myLocalUser !== 'user2';
-                    
+                    setupUserUI();
                     loadFromFirestore();
                     setupFirestoreListeners();
                 })
                 .catch((error) => {
+                    clearTimeout(loginTimeout);
                     console.error('匿名登录失败:', error);
-                    document.getElementById('userIdDisplay').textContent = '登录失败，请刷新重试';
+                    hideLoading();
+                    statusEl.textContent = '登录失败，请检查网络后刷新';
+                    
+                    setTimeout(() => {
+                        if (!currentUid) {
+                            const retry = confirm('登录失败，是否重试？');
+                            if (retry) {
+                                initFirebase();
+                            } else {
+                                statusEl.textContent = '登录失败，请稍后再试';
+                                myLocalUser = 'user1';
+                                currentUser = 'user1';
+                                setupUserUI();
+                                updateAllContent();
+                            }
+                        }
+                    }, 1000);
                 });
+        }
+        
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 500);
+            }
+        }
+        
+        function showUserChoiceModal() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; padding: 25px; max-width: 320px; width: 100%; text-align: center;">
+                    <h3 style="margin: 0 0 20px 0; color: #4a5568;">请选择您的身份</h3>
+                    <p style="color: #718096; margin-bottom: 20px;">您和朋友分别选择不同的身份</p>
+                    <div style="display: flex; gap: 15px; justify-content: center;">
+                        <button onclick="chooseUser('user1')" style="
+                            flex: 1; padding: 15px 20px; border: none; 
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: transform 0.2s;
+                        ">用户A</button>
+                        <button onclick="chooseUser('user2')" style="
+                            flex: 1; padding: 15px 20px; border: none; 
+                            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                            color: white; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: transform 0.2s;
+                        ">用户B</button>
+                    </div>
+                    <p style="font-size: 12px; color: #a0aec0; margin-top: 15px;">选择后将保存到本地，下次自动登录</p>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.chooseUserModal = modal;
+        }
+        
+        function chooseUser(user) {
+            myLocalUser = user;
+            currentUser = user;
+            isReadOnlyMode = false;
+            localStorage.setItem('myLocalUser', user);
+            
+            if (window.chooseUserModal) {
+                window.chooseUserModal.remove();
+                window.chooseUserModal = null;
+            }
+            
+            setupUserUI();
+            loadFromFirestore();
+            setupFirestoreListeners();
+        }
+        
+        function setupUserUI() {
+            document.getElementById('user1Name').classList.toggle('active', currentUser === 'user1');
+            document.getElementById('user2Name').classList.toggle('active', currentUser === 'user2');
+            document.getElementById('user1Name').disabled = myLocalUser !== 'user1';
+            document.getElementById('user2Name').disabled = myLocalUser !== 'user2';
         }
 
         function setupFirestoreListeners() {
@@ -1025,6 +1126,8 @@
         window.onDateChange = onDateChange;
         window.changeDate = changeDate;
         window.goToToday = goToToday;
+        window.chooseUser = chooseUser;
+        window.setupUserUI = setupUserUI;
         window.switchUser = (user) => {
             currentUser = user;
             isReadOnlyMode = user !== myLocalUser;
