@@ -217,54 +217,72 @@
         let auth = null;
         let firebaseLoaded = false;
         
+        function timeoutPromise(ms) {
+            return new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout')), ms);
+            });
+        }
+        
         async function loadFirebase() {
             try {
-                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js");
-                const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js");
-                const { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js");
+                const loadPromise = Promise.all([
+                    import("https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js"),
+                    import("https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js"),
+                    import("https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js")
+                ]);
                 
-                window.initializeApp = initializeApp;
-                window.getAuth = getAuth;
-                window.signInAnonymously = signInAnonymously;
-                window.getFirestore = getFirestore;
-                window.collection = collection;
-                window.doc = doc;
-                window.setDoc = setDoc;
-                window.getDoc = getDoc;
-                window.getDocs = getDocs;
-                window.query = query;
-                window.where = where;
-                window.onSnapshot = onSnapshot;
+                const [appModule, authModule, firestoreModule] = await Promise.race([loadPromise, timeoutPromise(5000)]);
+                
+                window.initializeApp = appModule.initializeApp;
+                window.getAuth = authModule.getAuth;
+                window.signInAnonymously = authModule.signInAnonymously;
+                window.getFirestore = firestoreModule.getFirestore;
+                window.collection = firestoreModule.collection;
+                window.doc = firestoreModule.doc;
+                window.setDoc = firestoreModule.setDoc;
+                window.getDoc = firestoreModule.getDoc;
+                window.getDocs = firestoreModule.getDocs;
+                window.query = firestoreModule.query;
+                window.where = firestoreModule.where;
+                window.onSnapshot = firestoreModule.onSnapshot;
                 
                 firebaseLoaded = true;
                 console.log('Firebase SDK加载成功');
             } catch (error) {
-                console.error('Firebase SDK加载失败:', error);
+                console.error('Firebase SDK加载失败或超时:', error);
                 firebaseLoaded = false;
             }
         }
         
-        loadFirebase().then(() => {
+        async function initFirebaseAndApp() {
+            await loadFirebase();
+            
             if (firebaseLoaded) {
-                const firebaseConfig = {
-                    apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmJCSVq2gBmK4Xmw",
-                    authDomain: "chelsea-lose-weight.firebaseapp.com",
-                    projectId: "chelsea-lose-weight",
-                    storageBucket: "chelsea-lose-weight.firebasestorage.app",
-                    messagingSenderId: "67583269783",
-                    appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
-                    measurementId: "G-4SPEC4QKQN"
-                };
-                
-                firebaseApp = window.initializeApp(firebaseConfig);
-                db = window.getFirestore(firebaseApp);
-                auth = window.getAuth(firebaseApp);
-                console.log('Firebase初始化成功');
+                try {
+                    const firebaseConfig = {
+                        apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmJCSVq2gBmK4Xmw",
+                        authDomain: "chelsea-lose-weight.firebaseapp.com",
+                        projectId: "chelsea-lose-weight",
+                        storageBucket: "chelsea-lose-weight.firebasestorage.app",
+                        messagingSenderId: "67583269783",
+                        appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
+                        measurementId: "G-4SPEC4QKQN"
+                    };
+                    
+                    firebaseApp = window.initializeApp(firebaseConfig);
+                    db = window.getFirestore(firebaseApp);
+                    auth = window.getAuth(firebaseApp);
+                    console.log('Firebase初始化成功');
+                } catch (initError) {
+                    console.error('Firebase初始化失败:', initError);
+                    firebaseLoaded = false;
+                }
             }
+            
             initApp();
-        }).catch(() => {
-            initApp();
-        });
+        }
+        
+        initFirebaseAndApp();
         
         function initApp() {
 
@@ -405,7 +423,8 @@
             
             if (!firebaseLoaded) {
                 console.warn('Firebase未加载，使用本地模式');
-                statusEl.textContent = '离线模式';
+                statusEl.textContent = '离线模式 - 数据仅保存在本地';
+                statusEl.style.color = '#f59e0b';
                 hideLoading();
                 
                 const savedUser = localStorage.getItem('myLocalUser');
@@ -416,6 +435,11 @@
                 
                 setupUserUI();
                 updateAllContent();
+                
+                setTimeout(() => {
+                    alert('当前处于离线模式\n\n由于网络限制，无法连接到云端服务器。\n您的数据将仅保存在当前设备上，无法与朋友同步。\n\n建议：\n1. 尝试切换网络（如使用VPN）\n2. 在电脑端使用可访问Google服务的网络\n3. 稍后再试');
+                }, 1500);
+                
                 return;
             }
             
