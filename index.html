@@ -453,20 +453,19 @@
                     
                     setTimeout(() => {
                         if (!currentUid) {
-                            const retry = confirm('登录超时，是否重试？');
-                            if (retry) {
+                            showRetryModal('登录超时', '网络连接较慢，请重试或使用离线模式', () => {
                                 location.reload();
-                            } else {
-                                statusEl.textContent = '登录超时，请稍后再试';
+                            }, () => {
+                                statusEl.textContent = '已切换到离线模式';
                                 myLocalUser = 'user1';
                                 currentUser = 'user1';
                                 setupUserUI();
                                 updateAllContent();
-                            }
+                            });
                         }
                     }, 1000);
                 }
-            }, 10000);
+            }, 8000);
             
             window.signInAnonymously(auth)
                 .then((userCredential) => {
@@ -494,27 +493,32 @@
                     clearTimeout(loginTimeout);
                     console.error('匿名登录失败:', error);
                     hideLoading();
-                    statusEl.textContent = '登录失败，请检查网络后刷新';
+                    
+                    const errorCode = error.code || '未知错误';
+                    const errorMsg = getAuthErrorMessage(errorCode);
+                    statusEl.textContent = `登录失败: ${errorCode}`;
+                    statusEl.style.color = '#ef4444';
+                    
+                    console.error('登录错误详情:', { code: error.code, message: error.message });
                     
                     setTimeout(() => {
                         if (!currentUid) {
-                            const retry = confirm('登录失败，是否重试？');
-                            if (retry) {
+                            showRetryModal('登录失败', errorMsg, () => {
                                 location.reload();
-                            } else {
-                                statusEl.textContent = '登录失败，请稍后再试';
+                            }, () => {
+                                statusEl.textContent = '已切换到离线模式';
                                 myLocalUser = 'user1';
                                 currentUser = 'user1';
                                 setupUserUI();
                                 updateAllContent();
-                            }
+                            });
                         }
-                    }, 1000);
+                    }, 500);
                 });
         }
         
         function logout() {
-            if (confirm('确定要退出登录吗？\n退出后本地保存的身份信息将被清除，下次打开需要重新选择身份。')) {
+            showConfirmModal('退出登录', '确定要退出登录吗？\n退出后本地保存的身份信息将被清除，下次打开需要重新选择身份。', () => {
                 localStorage.removeItem('myLocalUser');
                 localStorage.clear();
                 
@@ -541,7 +545,138 @@
                 setTimeout(() => {
                     location.reload();
                 }, 500);
+            });
+        }
+        
+        function getAuthErrorMessage(errorCode) {
+            const messages = {
+                'auth/unauthorized-domain': '当前域名未在Firebase控制台授权。\n请联系管理员添加域名。',
+                'auth/network-request-failed': '网络连接失败，请检查网络或切换到其他网络。',
+                'auth/operation-not-allowed': '匿名登录未启用。\n请在Firebase控制台开启匿名登录。',
+                'auth/internal-error': '内部错误，请稍后重试。',
+                'auth/too-many-requests': '请求过于频繁，请稍后再试。'
+            };
+            return messages[errorCode] || `登录失败 (${errorCode})，请重试或使用离线模式。`;
+        }
+        
+        function showRetryModal(title, message, retryCallback, cancelCallback) {
+            if (window.retryModal) {
+                window.retryModal.remove();
             }
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; padding: 25px; max-width: 320px; width: 100%; text-align: center;">
+                    <h3 style="margin: 0 0 15px 0; color: #4a5568;">${title}</h3>
+                    <p style="color: #718096; margin-bottom: 20px; line-height: 1.6;">${message}</p>
+                    <div style="display: flex; gap: 15px; justify-content: center;">
+                        <button id="retryCancelBtn" style="
+                            flex: 1; padding: 12px 20px; border: 2px solid #e2e8f0; 
+                            background: white; color: #718096; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: all 0.2s;
+                        ">取消</button>
+                        <button id="retryOkBtn" style="
+                            flex: 1; padding: 12px 20px; border: none; 
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: transform 0.2s;
+                        ">重试</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.retryModal = modal;
+            
+            document.getElementById('retryOkBtn').addEventListener('click', () => {
+                modal.remove();
+                window.retryModal = null;
+                retryCallback();
+            });
+            
+            document.getElementById('retryCancelBtn').addEventListener('click', () => {
+                modal.remove();
+                window.retryModal = null;
+                cancelCallback();
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    window.retryModal = null;
+                    cancelCallback();
+                }
+            });
+        }
+        
+        function showConfirmModal(title, message, okCallback) {
+            if (window.confirmModal) {
+                window.confirmModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; padding: 25px; max-width: 320px; width: 100%; text-align: center;">
+                    <h3 style="margin: 0 0 15px 0; color: #4a5568;">${title}</h3>
+                    <p style="color: #718096; margin-bottom: 20px; line-height: 1.6;">${message}</p>
+                    <div style="display: flex; gap: 15px; justify-content: center;">
+                        <button id="confirmCancelBtn" style="
+                            flex: 1; padding: 12px 20px; border: 2px solid #e2e8f0; 
+                            background: white; color: #718096; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: all 0.2s;
+                        ">取消</button>
+                        <button id="confirmOkBtn" style="
+                            flex: 1; padding: 12px 20px; border: none; 
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white; border-radius: 12px;
+                            font-size: 16px; font-weight: bold;
+                            cursor: pointer; transition: transform 0.2s;
+                        ">确定</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.confirmModal = modal;
+            
+            document.getElementById('confirmOkBtn').addEventListener('click', () => {
+                modal.remove();
+                window.confirmModal = null;
+                okCallback();
+            });
+            
+            document.getElementById('confirmCancelBtn').addEventListener('click', () => {
+                modal.remove();
+                window.confirmModal = null;
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    window.confirmModal = null;
+                }
+            });
         }
         
         function showUserChoiceModal() {
