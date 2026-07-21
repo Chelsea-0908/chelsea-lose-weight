@@ -212,23 +212,61 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmJCSVq2gBmK4Xmw",
-            authDomain: "chelsea-lose-weight.firebaseapp.com",
-            projectId: "chelsea-lose-weight",
-            storageBucket: "chelsea-lose-weight.firebasestorage.app",
-            messagingSenderId: "67583269783",
-            appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
-            measurementId: "G-4SPEC4QKQN"
-        };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const db = getFirestore(firebaseApp);
-        const auth = getAuth(firebaseApp);
+        let firebaseApp = null;
+        let db = null;
+        let auth = null;
+        let firebaseLoaded = false;
+        
+        async function loadFirebase() {
+            try {
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js");
+                const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js");
+                const { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js");
+                
+                window.initializeApp = initializeApp;
+                window.getAuth = getAuth;
+                window.signInAnonymously = signInAnonymously;
+                window.getFirestore = getFirestore;
+                window.collection = collection;
+                window.doc = doc;
+                window.setDoc = setDoc;
+                window.getDoc = getDoc;
+                window.getDocs = getDocs;
+                window.query = query;
+                window.where = where;
+                window.onSnapshot = onSnapshot;
+                
+                firebaseLoaded = true;
+                console.log('Firebase SDK加载成功');
+            } catch (error) {
+                console.error('Firebase SDK加载失败:', error);
+                firebaseLoaded = false;
+            }
+        }
+        
+        loadFirebase().then(() => {
+            if (firebaseLoaded) {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDa7AaaY7jbOLGYzbZqmJCSVq2gBmK4Xmw",
+                    authDomain: "chelsea-lose-weight.firebaseapp.com",
+                    projectId: "chelsea-lose-weight",
+                    storageBucket: "chelsea-lose-weight.firebasestorage.app",
+                    messagingSenderId: "67583269783",
+                    appId: "1:67583269783:web:7c6aea0c7d44b8b6a00d2",
+                    measurementId: "G-4SPEC4QKQN"
+                };
+                
+                firebaseApp = window.initializeApp(firebaseConfig);
+                db = window.getFirestore(firebaseApp);
+                auth = window.getAuth(firebaseApp);
+                console.log('Firebase初始化成功');
+            }
+            initApp();
+        }).catch(() => {
+            initApp();
+        });
+        
+        function initApp() {
 
         const foodCalories = {};
         const foodDatabase = {
@@ -262,6 +300,16 @@
         let isReadOnlyMode = false;
         let myLocalUser = 'user1';
         let selectedDate = getTodayString();
+        
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 500);
+            }
+        }
         
         function getTodayString() {
             const now = new Date();
@@ -354,16 +402,49 @@
         function initFirebase() {
             const statusEl = document.getElementById('userIdDisplay');
             const loadingStatus = document.getElementById('loadingStatus');
+            
+            if (!firebaseLoaded) {
+                console.warn('Firebase未加载，使用本地模式');
+                statusEl.textContent = '离线模式';
+                hideLoading();
+                
+                const savedUser = localStorage.getItem('myLocalUser');
+                if (savedUser) {
+                    myLocalUser = savedUser;
+                    currentUser = savedUser;
+                }
+                
+                setupUserUI();
+                updateAllContent();
+                return;
+            }
+            
             statusEl.textContent = '正在登录...';
             
             let loginTimeout = setTimeout(() => {
                 if (!currentUid) {
                     console.warn('登录超时');
                     loadingStatus.textContent = '登录超时，请检查网络';
+                    hideLoading();
+                    
+                    setTimeout(() => {
+                        if (!currentUid) {
+                            const retry = confirm('登录超时，是否重试？');
+                            if (retry) {
+                                location.reload();
+                            } else {
+                                statusEl.textContent = '登录超时，请稍后再试';
+                                myLocalUser = 'user1';
+                                currentUser = 'user1';
+                                setupUserUI();
+                                updateAllContent();
+                            }
+                        }
+                    }, 1000);
                 }
             }, 10000);
             
-            signInAnonymously(auth)
+            window.signInAnonymously(auth)
                 .then((userCredential) => {
                     clearTimeout(loginTimeout);
                     currentUid = userCredential.user.uid;
@@ -395,7 +476,7 @@
                         if (!currentUid) {
                             const retry = confirm('登录失败，是否重试？');
                             if (retry) {
-                                initFirebase();
+                                location.reload();
                             } else {
                                 statusEl.textContent = '登录失败，请稍后再试';
                                 myLocalUser = 'user1';
@@ -1177,6 +1258,7 @@
             saveToHistory();
             saveToFirestore();
         });
+    }
     </script>
 </body>
 </html>
