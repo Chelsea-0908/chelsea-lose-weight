@@ -34,6 +34,9 @@
                 <div class="user-btn-group">
                     <input type="text" id="user2Name" class="user-name-input" value="用户B" maxlength="10" onclick="switchUser('user2')">
                 </div>
+                <button id="logoutBtn" class="logout-btn" onclick="logout()" title="退出登录并清除本地数据">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
             <div class="date-selector">
                 <button id="prevDayBtn" class="date-nav-btn" onclick="changeDate(-1)"><i class="fas fa-chevron-left"></i></button>
@@ -405,12 +408,33 @@
                 });
         }
         
-        function hideLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
+        function logout() {
+            if (confirm('确定要退出登录吗？\n退出后本地保存的身份信息将被清除，下次打开需要重新选择身份。')) {
+                localStorage.removeItem('myLocalUser');
+                localStorage.clear();
+                
+                currentUid = null;
+                myLocalUser = 'user1';
+                currentUser = 'user1';
+                isReadOnlyMode = false;
+                
+                dailyData = {
+                    user1: { meals: { breakfast: [], lunch: [], dinner: [], snack: [] }, exercises: [] },
+                    user2: { meals: { breakfast: [], lunch: [], dinner: [], snack: [] }, exercises: [] }
+                };
+                historyData = { user1: [], user2: [] };
+                
+                document.getElementById('userIdDisplay').textContent = '已退出登录';
+                document.getElementById('user1Name').classList.remove('active');
+                document.getElementById('user2Name').classList.remove('active');
+                document.getElementById('user1Name').disabled = false;
+                document.getElementById('user2Name').disabled = false;
+                
+                addSampleData();
+                updateAllContent();
+                
                 setTimeout(() => {
-                    overlay.style.display = 'none';
+                    location.reload();
                 }, 500);
             }
         }
@@ -1128,6 +1152,7 @@
         window.goToToday = goToToday;
         window.chooseUser = chooseUser;
         window.setupUserUI = setupUserUI;
+        window.logout = logout;
         window.switchUser = (user) => {
             currentUser = user;
             isReadOnlyMode = user !== myLocalUser;
